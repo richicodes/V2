@@ -1,0 +1,87 @@
+{% extends 'base-content.html' %}
+
+{% block cardbody %}
+<h4 class="card-title">
+  <span>Unit Name</span>
+  <a type="submit" class="btn btn-primary float-end" href="{{ url_for('inet') }}">Logout</a>
+</h4>
+{% endblock %}
+
+{% block inetcontent %}
+<div class="row my-2 justify-content-center px-3">
+  <div class="card border-dark">
+    <div class="card-body">
+      <h4 class="card-title">
+        <span>Medic Details</span>
+      </h4> 
+      <p>Upload CSV or enter it into field to search or modify</p>
+
+        <form method="POST">
+          {{ form.csrf_token }}
+          <div class="form-group">
+            {{ form.uuid.label }}
+            <br>
+            {{ form.uuid(placeholder="00000000-0000-0000-0000-000000000000", size="39") }}
+            {% if form.uuid.errors %} 
+              {% for error in form.uuid.errors %}
+              <span class="badge bg-danger">{{ error}}</span></h1>
+              {% endfor %}
+            {% endif %}
+          </div>
+          <div class="form-group pt-2">
+            {{ form.submit(class="btn btn-primary") }}
+          </div>
+        </form>
+
+
+
+
+
+      <form>
+        <div class="form-group mb-3">
+          <input type="file" class="form-control-file" id="exampleFormControlFile1">
+        </div>
+        <div class="form-group mb-3">
+          <textarea class="form-control" id="exampleFormControlTextarea1" rows="3">Masked NRIC, First Word Of Name</textarea>
+        </div>
+      </form>
+      <div class="btn-group btn-group-toggle" data-toggle="buttons">
+        <button type="submit" class="btn btn-success" onclick="alert('File downloading')">
+          Search
+        </button>
+        <button type="submit" class="btn btn-primary" onclick="alert('File downloading')">
+          Download Result
+        </button>            
+      </div>
+
+
+
+
+      <table data-toggle="table" data-search="true" data-show-columns="true">
+        <thead>
+          <tr>
+            <th data-sortable="true">Masked NRIC</th>
+            <th data-sortable="true">Name (First Word)</th>
+            <th data-sortable="true">Peacetme Medical Cover Exipry</th>
+            <th data-sortable="true">Months to Expiry</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>054F</td>
+            <td>LIM</td>
+            <td>5 January 2022</td>
+            <td>6</td>
+          </tr>
+          <tr>
+            <td>346F</td>
+            <td>SAM</td>
+            <td>5 January 2022</td>
+            <td>6</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

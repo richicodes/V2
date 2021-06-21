@@ -1,0 +1,29 @@
+{% extends 'base-content.html' %}
+
+{% block displaycontent %}
+<div class="card border-dark mt-2 mx-auto" style="max-width: 40rem;">
+  <div class="card-header">Eligibility to Provide Peacetime Medical Coverage</div>
+  <div class="card-body">
+    <h3 class="card-title">
+      <span>XXXXX{{ic}}</span>
+      {% if valid %}
+        <span class="badge bg-success">Valid</span>
+      {% else %}
+        <span class="badge bg-danger">Invalid</span>
+      {% endif %}
+    </h3>
+    <hr>
+    <p class="card-text">
+      Date of Expiry: <b>{{ exp }}</b><br>
+      {% if valid %}
+        Expires in 
+      {% else %}
+        Has expired for
+      {% endif %}
+      {{months}} months ({{days}} days)
+      <a type="submit" class="btn btn-primary float-end" href="{{ url_for('home') }}">Logout</a>
+    </p>
+  </div>
+</div>
+
+{% endblock %}
