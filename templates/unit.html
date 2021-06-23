@@ -16,43 +16,31 @@
       </h4> 
       <p>Upload CSV or enter it into field to search or modify</p>
 
-        <form method="POST">
-          {{ form.csrf_token }}
+        <form method="POST" enctype="multipart/form-data">
+          {{ csvform.csrf_token }}
           <div class="form-group">
-            {{ form.uuid.label }}
-            <br>
-            {{ form.uuid(placeholder="00000000-0000-0000-0000-000000000000", size="39") }}
-            {% if form.uuid.errors %} 
-              {% for error in form.uuid.errors %}
-              <span class="badge bg-danger">{{ error}}</span></h1>
+            {{ csvform.file }} {{ csvform.submit(class="btn btn-primary") }}
+            {% if csvform.file.errors %} 
+              {% for error in csvform.file.errors %}
+              <span class="badge bg-danger">{{ error }}</span></h1>
               {% endfor %}
             {% endif %}
           </div>
-          <div class="form-group pt-2">
-            {{ form.submit(class="btn btn-primary") }}
-          </div>
         </form>
 
-
-
-
-
-      <form>
-        <div class="form-group mb-3">
-          <input type="file" class="form-control-file" id="exampleFormControlFile1">
-        </div>
-        <div class="form-group mb-3">
-          <textarea class="form-control" id="exampleFormControlTextarea1" rows="3">Masked NRIC, First Word Of Name</textarea>
-        </div>
-      </form>
-      <div class="btn-group btn-group-toggle" data-toggle="buttons">
-        <button type="submit" class="btn btn-success" onclick="alert('File downloading')">
-          Search
-        </button>
-        <button type="submit" class="btn btn-primary" onclick="alert('File downloading')">
-          Download Result
-        </button>            
-      </div>
+        <form method="POST" enctype="multipart/form-data">
+          {{ unitform.csrf_token }}
+          <div class="form-group">
+            {{ unitform.entry(rows="3", cols="100") }} 
+            <br>
+            {{ unitform.submit(class="btn btn-success") }}
+            {% if unitform.entry.errors %} 
+              {% for error in unitform.entry.errors %}
+              <span class="badge bg-danger">{{ error }}</span></h1>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </form>
 
 
 
