@@ -8,67 +8,84 @@
 {% endblock %}
 
 {% block inetcontent %}
-<div class="row my-2 justify-content-center px-3">
+<div class="row my-2 mx-auto" style="max-width: fit-content;">
   <div class="card border-dark">
     <div class="card-body">
       <h4 class="card-title">
         <span>Medic Details</span>
       </h4> 
-      <p>Upload CSV or enter it into field to search or modify</p>
+      <p>Upload Excel file or enter it into field to search or modify</p>
 
-        <form method="POST" enctype="multipart/form-data">
-          {{ csvform.csrf_token }}
+        <form method="POST" enctype="multipart/form-data" class="mb-2">
+          {{ formxls.csrf_token }}
           <div class="form-group">
-            {{ csvform.file }} {{ csvform.submit(class="btn btn-primary") }}
-            {% if csvform.file.errors %} 
-              {% for error in csvform.file.errors %}
+            {{ formxls.file(button_map={'submitxls':'primary'}) }} {{ formxls.submitxls(class="btn btn-primary btn-sm") }}
+            {% if formxls.file.errors %} 
+              {% for error in formxls.file.errors %}
               <span class="badge bg-danger">{{ error }}</span></h1>
               {% endfor %}
             {% endif %}
           </div>
         </form>
 
-        <form method="POST" enctype="multipart/form-data">
-          {{ unitform.csrf_token }}
+        <form method="POST">
+          {{ formunit.csrf_token }}
           <div class="form-group">
-            {{ unitform.entry(rows="3", cols="100") }} 
+            {{ formunit.entry(rows="10", cols="100") }} 
             <br>
-            {{ unitform.submit(class="btn btn-success") }}
-            {% if unitform.entry.errors %} 
-              {% for error in unitform.entry.errors %}
+            <div class="btn-group" role="group">
+              {{ formunit.submitunit(class="btn btn-success") }}
+              {% if table %}
+                {{ formunit.downloadunit(class="btn btn-primary") }}
+              {% else %}
+                {{ formunit.downloadunit(class="btn btn-primary disabled") }}
+              {% endif %}
+            </div>
+            {% if formunit.entry.errors %} 
+              {% for error in formunit.entry.errors %}
+              <span class="badge bg-danger">{{ error }}</span></h1>
+              {% endfor %}
+            {% endif %}
+            {% if formunit.submitunit.errors %} 
+              {% for error in formunit.submitunit.errors %}
               <span class="badge bg-danger">{{ error }}</span></h1>
               {% endfor %}
             {% endif %}
           </div>
         </form>
 
-
-
-
-      <table data-toggle="table" data-search="true" data-show-columns="true">
-        <thead>
-          <tr>
-            <th data-sortable="true">Masked NRIC</th>
-            <th data-sortable="true">Name (First Word)</th>
-            <th data-sortable="true">Peacetme Medical Cover Exipry</th>
-            <th data-sortable="true">Months to Expiry</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>054F</td>
-            <td>LIM</td>
-            <td>5 January 2022</td>
-            <td>6</td>
-          </tr>
-          <tr>
-            <td>346F</td>
-            <td>SAM</td>
-            <td>5 January 2022</td>
-            <td>6</td>
-          </tr>
-        </tbody>
-      </table>
+      {% if table %}
+        <table 
+          data-toggle="table" 
+          data-search="true" 
+          data-show-columns="true"
+          data-pagination="true">
+          <thead>
+            <tr>
+              <th data-sortable="true">Masked NRIC</th>
+              <th data-sortable="true">Name (First Word)</th>
+              <th data-sortable="true">Peacetime Validity</th>
+              <th data-sortable="true">Expiry Date</th>
+              <th data-sortable="true">Duration (days)</th>
+            </tr>
+          </thead>
+          <tbody>            
+            {% for row in table %}
+            <tr>
+              <td>{{row.masked_ic}}</td>
+              <td>{{row.first_name}}</td>
+              {% if row.validity %}
+                <td class="text-success">Valid</td>
+              {% else %}
+                <td class="text-danger">Invalid</td>
+              {% endif %}
+              <td>{{row.expiry_date}}</td>
+              <td>{{row.duration}}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
     </div>
   </div>
 </div>

@@ -12,6 +12,8 @@ flask-sqlalchemy = "^2.5.1"
 flask-wtf = "^0.15.1"
 sqlalchemy = "^1.4.18"
 werkzeug = "^2.0.1"
+pandas = "^1.2.5"
+openpyxl = "^3.0.7"
 
 [tool.poetry.dev-dependencies]
 

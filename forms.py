@@ -9,10 +9,11 @@ class uuidForm(FlaskForm):
     [InputRequired(message="No input to process"), UUID(message="Please input valid UUID")])
   submit = SubmitField('Singpass Login')
 
-class csvForm(FlaskForm):
-  file = FileField(validators=[FileRequired("Please choose a file to upload"), FileAllowed(["csv"], "Only .csv files are accepted")])
-  submit = SubmitField('Upload')
+class xlsForm(FlaskForm):
+  file = FileField(validators=[FileRequired(), FileAllowed(["xlsx"], "Only .xlsx files are accepted")])
+  submitxls = SubmitField('Upload')
 
 class unitForm(FlaskForm):
   entry = TextAreaField(validators=[InputRequired(message="No input to process")])
-  submit = SubmitField('Search')
+  submitunit = SubmitField('Search')
+  downloadunit = SubmitField('Download')
