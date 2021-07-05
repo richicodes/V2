@@ -8,19 +8,19 @@
 {% endblock %}
 
 {% block inetcontent %}
-<div class="row my-2 justify-content-center px-3">
+<div class="row my-2 mx-auto" style="max-width: fit-content;">
   <div class="card border-dark">
-    <ul class="nav nav-tabs m-2" id="myTab" role="tablist">
+    <ul class="nav nav-tabs nav-justified m-2" id="myTab" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="medic-tab" data-bs-toggle="tab" data-bs-target="#medic" type="button" role="tab" aria-controls="medic" aria-selected="true">Medic Data</button>
+        <button class="nav-link {% if session['tab'] == 'smti' %} active {% endif %}" id="smti-tab" data-bs-toggle="tab" data-bs-target="#smti" type="button" role="tab" aria-controls="smti" aria-selected="true">Medic Data</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="user-tab" data-bs-toggle="tab" data-bs-target="#user" type="button" role="tab" aria-controls="user" aria-selected="false">User Profiles</button>
+        <button class="nav-link {% if session['tab'] == 'profile' %} active {% endif %}" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="false">User Profiles</button>
       </li>
     </ul>
 
     <div class="tab-content" id="myTabContent">
-      <div class="tab-pane fade show active" id="medic" role="tabpanel" aria-labelledby="medic-tab">
+      <div class="tab-pane fade {% if session['tab'] == 'smti' %} show active {% endif %}" id="smti" role="tabpanel" aria-labelledby="smti-tab">
         <div class="card-body">
           <h4 class="card-title">
             <span>Medic Details</span>
@@ -46,7 +46,7 @@
                 <br>
                 <div class="btn-group" role="group">
                   {{ formsearch.submit_smti(class="btn btn-success") }}
-                  {% if table %}
+                  {% if session["result"] %}
                     {{ formsearch.download_smti(class="btn btn-primary") }}
                   {% else %}
                     {{ formsearch.download_smti(class="btn btn-primary disabled") }}
@@ -65,7 +65,7 @@
               </div>
             </form>
 
-          {% if table %}
+          {% if session["result"] %}
             <table 
               data-toggle="table" 
               data-search="true" 
@@ -74,7 +74,7 @@
               <thead>
                 <tr>
                   <th data-sortable="true">Masked NRIC</th>
-                  <th data-sortable="true">Name (First Word)</th>
+                  <th data-sortable="true">Full Name</th>
                   <th data-sortable="true">Peacetime Validity</th>
                   <th data-sortable="true">Peacetime Expiry Date</th>
                   <th data-sortable="true">Peacetime Balance Duration (days)</th>
@@ -87,11 +87,11 @@
                 </tr>
               </thead>
               <tbody>            
-                {% for row in table %}
+                {% for row in session["result"] %}
                 <tr>
                   <td>{{row.masked_ic}}</td>
-                  <td>{{row.first_name}}</td>
-                  {% if row.validity %}
+                  <td>{{row.full_name}}</td>
+                  {% if row.validity == "Valid" %}
                     <td class="text-success">Valid</td>
                   {% else %}
                     <td class="text-danger">Invalid</td>
@@ -112,10 +112,10 @@
         </div>
       </div>
 
-      <div class="tab-pane fade" id="user" role="tabpanel" aria-labelledby="user-tab">
+      <div class="tab-pane fade {% if session['tab'] == 'profile' %} show active {% endif %}" id="profile" role="tabpanel" aria-labelledby="profile-tab">
         <div class="card-body">
           <h4 class="card-title">
-            <span>Medic Details</span>
+            <span>User Profile Details</span>
           </h4> 
           <p>Upload Excel file or enter it into field to search or modify</p>
 
@@ -138,7 +138,7 @@
                 <br>
                 <div class="btn-group" role="group">
                   {{ formsearchp.submit_profile(class="btn btn-success") }}
-                  {% if table %}
+                  {% if session["result_p"] %}
                     {{ formsearchp.download_profile(class="btn btn-primary") }}
                   {% else %}
                     {{ formsearchp.download_profile(class="btn btn-primary disabled") }}
@@ -157,7 +157,7 @@
               </div>
             </form>
 
-          {% if table_p %}
+          {% if session["result_p"] %}
             <table 
               data-toggle="table" 
               data-search="true" 
@@ -166,15 +166,15 @@
               <thead>
                 <tr>
                   <th data-sortable="true">Masked NRIC</th>
-                  <th data-sortable="true">Name (First Word)</th>
+                  <th data-sortable="true">Full Name</th>
                   <th data-sortable="true">Access Rights</th>
                 </tr>
               </thead>
               <tbody>            
-                {% for row in table_p %}
+                {% for row in session["result_p"] %}
                 <tr>
                   <td>{{row.masked_ic}}</td>
-                  <td>{{row.first_name}}</td>
+                  <td>{{row.full_name}}</td>
                   <td>{{row.rights}}</td>
                 </tr>
                 {% endfor %}
@@ -186,4 +186,5 @@
     </div>
   </div>
 </div>
+
 {% endblock %}

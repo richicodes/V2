@@ -4,7 +4,7 @@ from flask_wtf import CSRFProtect
 
 from flask_sqlalchemy import SQLAlchemy
 
-from pandas import read_excel, DataFrame, ExcelWriter
+from pandas import read_excel
 
 from datetime import datetime
 
@@ -156,67 +156,73 @@ def unit():
           )
           uuids += [result.uuid for result in NameQuery]
 
-        try:
+        if len(uuids) > 0:
           for uuid in uuids:
-            try:
-              InternetQuery = (
-                db.session.query(MaskedIC, AMPT, VocDate)
-                .join(AMPT)
-                .join(VocDate)
-                .filter(MaskedIC.uuid==uuid)
-                .first()
-              )
+            InternetQuery = (
+              db.session.query(MaskedIC, AMPT, VocDate)
+              .join(AMPT)
+              .join(VocDate)
+              .filter(MaskedIC.uuid==uuid)
+              .first()
+            )
 
-              validity, expDate, duration = expiryCalculator(InternetQuery.VocDate.course_date, InternetQuery.AMPT.ampt_date)
-
-              session['result'].append({
-              "masked_ic": query[0],
-              "first_name": query[1],
-              "validity": validity,
-              "expiry_date": expDate.strftime("%Y-%m-%d"),
-              "duration": duration
-              }) 
-
-            except:
+            if InternetQuery == None:
               session['result'].append({
                 "masked_ic": query[0],
                 "first_name": query[1],
-                "validity": False,
+                "validity": "Invalid",
                 "expiry_date": "Invalid",
                 "duration": "Invalid" 
-              }) 
-        except:
+              })
+            else:
+              validity, expDate, duration = expiryCalculator(
+                date1=multi_getattr(InternetQuery, "VocDate.course_date", None),
+                date2=multi_getattr(InternetQuery, "AMPT.ampt_date", None)
+              )
+
+              session['result'].append({
+                "masked_ic": query[0],
+                "first_name": query[1],
+                "validity": validity,
+                "expiry_date": multi_getattr(expDate, 'strftime')("%Y-%m-%d"),
+                "duration": duration
+                }) 
+
+        else:
           session['result'].append({
             "masked_ic": query[0],
             "first_name": query[1],
-            "validity": False,
+            "validity": "Invalid",
             "expiry_date": "Invalid",
             "duration": "Invalid" 
           })
 
     except EmptyQuery:
-      formsearch.submitunit.errors.append("There is no query detected")
+      formsearch.submitunit.errors.append("No search query detected in search field. Click 'Upload' to populate search field with file.")
       print("error")
     except:
       formsearch.submitunit.errors.append("The query is formatted incorrectly")
   
   if formsearch.downloadunit.data and formsearch.validate():
-    return redirect(url_for('unitdownload'))
+    return sendExcel(
+      dict_in=session['result'], 
+      column_order=["masked_ic", "first_name", "validity", "expiry_date", "duration"], 
+      filename_suffix="eMedic"
+      )
          
-  return render_template('unit.html', inet = True, formxls = formxls, formsearch=formsearch, table = session['result'])
+  return render_template('unit.html', inet = True, formxls = formxls, formsearch=formsearch)
 
 @app.route('/smti', methods=['GET', 'POST'])
 def smti():
   formxls = smtiXlsxForm()
   formsearch = smtiSearchForm(
-    entry_smti='"Masked NRIC (123X)","FIRSTWORDOFNAME"'
+    entry_smti='"Masked NRIC (123X)","FULL NAME"'
   )
 
   formxlsp = profileXlsxForm()
   formsearchp = profileSearchForm(
-    entry_profile='"Masked NRIC (123X)","FIRSTWORDOFNAME"'
+    entry_profile='"Masked NRIC (123X)","FULL NAME"'
   )
-
 
   if 'result' not in session:
     session['result'] = None
@@ -224,7 +230,11 @@ def smti():
   if 'result_p' not in session:
     session['result_p'] = None
 
-  if formxls.file_smti.data and formxls.validate():
+  if 'tab' not in session:
+    session['tab'] = "smti"
+
+  if formxls.submitxls_smti.data and formxls.validate():
+    session['tab'] = "smti"
     f = formxls.file_smti.data
     try:
       formsearch.entry_smti.data = read_excel(f).to_csv(quoting=csv.QUOTE_ALL, index=False)
@@ -232,7 +242,8 @@ def smti():
       formxls.file_smti.errors.append("The file is formatted incorrectly")
 
   if formsearch.submit_smti.data and formsearch.validate():
-    
+    session['tab'] = "smti"
+
     q = formsearch.entry_smti.data.splitlines()
     class EmptyQuery(Exception):
       """Exception raised when query is empty"""
@@ -257,70 +268,68 @@ def smti():
 
         for uuid in [result.uuid for result in ICQuery]:
           NameQuery = (
-            db.session.query(FullName).
-            filter(FullName.uuid==uuid)
-            .filter(
-              (FullName.full_name.startswith(query[1]+" ")) |
-              (FullName.full_name==query[1])
-            )        
+            db.session.query(FullName)
+            .filter(FullName.uuid==uuid)
+            .filter(FullName.full_name == query[1])
             .all()
           )
           uuids += [result.uuid for result in NameQuery]
 
-        try:
+        if len(uuids) > 0:
           for uuid in uuids:
-            try:
-              InternetQuery = (
-                db.session.query(MaskedIC, AMPT, VocDate)
-                .join(AMPT)
-                .join(VocDate)
-                .filter(MaskedIC.uuid==uuid)
-                .first()
-              )
+            InternetQuery = (
+              db.session.query(MaskedIC, AMPT, VocDate)
+              .join(AMPT)
+              .join(VocDate)
+              .filter(MaskedIC.uuid==uuid)
+              .first()
+            )
 
-              IntranetQuery = (
-                db.session.query(FullName, VocName, AED)
-                .join(VocName)
-                .join(AED)
-                .filter(FullName.uuid==uuid)
-                .first()
-              )
+            IntranetQuery = (
+              db.session.query(FullName, VocName, AED)
+              .join(VocName)
+              .join(AED)
+              .filter(FullName.uuid==uuid)
+              .first()
+            )
 
-              validity, expDate, duration = expiryCalculator(InternetQuery.VocDate.course_date, InternetQuery.AMPT.ampt_date)
-
+            if InternetQuery == None and IntranetQuery == None:
               session['result'].append({
               "masked_ic": query[0],
-              "first_name": query[1],
-              "validity": validity,
-              "expiry_date": expDate.strftime("%Y-%m-%d"),
-              "duration": duration,
-              "course_name": IntranetQuery.VocName.course_name,
-              "course_date": InternetQuery.VocDate.course_date.strftime("%Y-%m-%d"),
-              "ampt_date": InternetQuery.AMPT.ampt_date.strftime("%Y-%m-%d"),
-              "aed_name": IntranetQuery.AED.aed_name,
-              "aed_date": IntranetQuery.AED.aed_date.strftime("%Y-%m-%d"),
-              "aed_cert": IntranetQuery.AED.aed_cert
+              "full_name": query[1],
+              "validity":   "Invalid",
+              "expiry_date": "Invalid",
+              "duration": "Invalid",
+              "course_name": "Invalid",
+              "course_date": "Invalid",
+              "ampt_date": "Invalid",
+              "aed_name": "Invalid",
+              "aed_date": "Invalid",
+              "aed_cert": "Invalid"
               }) 
-
-            except:
+            else:
+              validity, expDate, duration = expiryCalculator(
+                date1=multi_getattr(InternetQuery, "VocDate.course_date", None),
+                date2=multi_getattr(InternetQuery, "AMPT.ampt_date", None)
+              )
               session['result'].append({
-                "masked_ic": query[0],
-                "first_name": query[1],
-                "validity":   False,
-                "expiry_date": "Invalid",
-                "duration": "Invalid",
-                "course_name": "Invalid",
-                "course_date": "Invalid",
-                "ampt_date": "Invalid",
-                "aed_name": "Invalid",
-                "aed_date": "Invalid",
-                "aed_cert": "Invalid"
-                }) 
-        except:
+              "masked_ic": query[0],
+              "full_name": query[1],
+              "validity": validity,
+              "expiry_date": multi_getattr(expDate,"strftime")("%Y-%m-%d"),
+              "duration": duration,
+              "course_name": multi_getattr(IntranetQuery,"VocName.course_name"),
+              "course_date": multi_getattr(InternetQuery,"VocDate.course_date.strftime")("%Y-%m-%d"),
+              "ampt_date": multi_getattr(InternetQuery,"AMPT.ampt_date.strftime")("%Y-%m-%d"),
+              "aed_name": multi_getattr(IntranetQuery,"AED.aed_name"),
+              "aed_date": multi_getattr(IntranetQuery,"AED.aed_date.strftime")("%Y-%m-%d"),
+              "aed_cert": multi_getattr(IntranetQuery,"AED.aed_cert")
+              }) 
+        else:
           session['result'].append({
             "masked_ic": query[0],
-            "first_name": query[1],
-            "validity":   False,
+            "full_name": query[1],
+            "validity":   "Invalid",
             "expiry_date": "Invalid",
             "duration": "Invalid",
             "course_name": "Invalid",
@@ -329,18 +338,24 @@ def smti():
             "aed_name": "Invalid",
             "aed_date": "Invalid",
             "aed_cert": "Invalid"
-            })           
+            })
+          print(vars(session))
 
     except EmptyQuery:
-      formsearch.submit_smti.errors.append("There is no query detected")
-      print("error")
+      formsearch.submit_smti.errors.append("No search query detected in search field. Click 'Upload' to populate search field with file.")
     except:
       formsearch.submit_smti.errors.append("The query is formatted incorrectly")
   
   if formsearch.download_smti.data and formsearch.validate():
-    return redirect(url_for('unitdownload'))
+    session['tab'] = "smti"
+    return sendExcel(
+      dict_in=session['result'], 
+      column_order=["masked_ic", "full_name", "validity", "expiry_date", "duration", "course_name", "course_date", "ampt_date", "aed_cert"], 
+      filename_suffix="eMedic"
+      )
 
   if formxlsp.submitxls_profile.data and formxlsp.validate():
+    session['tab'] = "profile"
     f = formxlsp.file_profile.data
     try:
       formsearchp.entry_profile.data = read_excel(f).to_csv(quoting=csv.QUOTE_ALL, index=False)
@@ -348,7 +363,7 @@ def smti():
       formxlsp.file.errors.append("The file is formatted incorrectly")
 
   if formsearchp.submit_profile.data and formsearchp.validate():
-    
+    session['tab'] = "profile"
     q = formsearchp.entry_profile.data.splitlines()
     class EmptyQuery(Exception):
       """Exception raised when query is empty"""
@@ -373,73 +388,56 @@ def smti():
 
         for uuid in [result.uuid for result in ICQuery]:
           NameQuery = (
-            db.session.query(FullName).
-            filter(FullName.uuid==uuid)
-            .filter(
-              (FullName.full_name.startswith(query[1]+" ")) |
-              (FullName.full_name==query[1])
-            )        
+            db.session.query(FullName)
+            .filter(FullName.uuid==uuid)
+            .filter(FullName.full_name == query[1])
             .all()
           )
           uuids += [result.uuid for result in NameQuery]
 
-        try:
+        if len(uuids) > 0:
           for uuid in uuids:
-            try:
-              IntranetQuery = (
-                db.session.query(FullName, Profile)
-                .join(Profile)
-                .filter(FullName.uuid==uuid)
-                .first()
-              )
+            IntranetQuery = (
+              db.session.query(FullName, Profile)
+              .join(Profile)
+              .filter(FullName.uuid==uuid)
+              .first()
+            )
 
-              session['result_p'].append({
-              "masked_ic": query[0],
-              "first_name": query[1],
-              "rights": IntranetQuery.Profile.rights
-              }) 
-            except:
+            if IntranetQuery == None:
               session['result_p'].append({
                 "masked_ic": query[0],
-                "first_name": query[1],
+                "full_name": query[1],
                 "rights": "Invalid" 
               })
-        except:
+            
+            else:
+              session['result_p'].append({
+              "masked_ic": query[0],
+              "full_name": query[1],
+              "rights": multi_getattr(IntranetQuery, "Profile.rights")
+              }) 
+        else:
           session['result_p'].append({
             "masked_ic": query[0],
-            "first_name": query[1],
+            "full_name": query[1],
             "rights": "Invalid" 
           })
 
     except EmptyQuery:
-      formsearchp.submit_profile.errors.append("There is no query detected")
-      print("error")
+      formsearchp.submit_profile.errors.append("No search query detected in search field. Click 'Upload' to populate search field with file.")
     except:
       formsearchp.submit_profile.errors.append("The query is formatted incorrectly")
   
   if formsearchp.download_profile.data and formsearchp.validate():
-    return redirect(url_for('unitdownload'))
+    session['tab'] = "profile"
+    return sendExcel(
+      dict_in=session['result'], 
+      column_order=["masked_ic", "full_name", "rights"],
+      filename_suffix="profiles"
+      )
          
-  return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, table = session['result'], formxlsp = formxlsp, formsearchp=formsearchp, table_p = session['result_p'])
-
-@app.route('/unit/download', methods=['GET', 'POST'])
-def unitdownload():
-  print("pass")
-  print(session['result'])
-  output = io.BytesIO()
-  columns= ["masked_ic", "first_name", "validity", "expiry_date", "duration"]
-  df=DataFrame.from_dict(session['result'])[columns]
-  print(df)
-  with ExcelWriter(output) as writer:      
-    df.to_excel(writer)
-  
-  with open("output.xlsx", "wb") as file:
-    file.write(output.getbuffer())
-
-  return send_file(output, 
-    as_attachment=True,
-    download_name="result.xlsx"
-  )
+  return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp)
 
 
 @app.route('/invalid')

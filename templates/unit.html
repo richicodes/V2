@@ -35,7 +35,7 @@
             <br>
             <div class="btn-group" role="group">
               {{ formsearch.submitunit(class="btn btn-success") }}
-              {% if table %}
+              {% if session["result"] %}
                 {{ formsearch.downloadunit(class="btn btn-primary") }}
               {% else %}
                 {{ formsearch.downloadunit(class="btn btn-primary disabled") }}
@@ -54,7 +54,7 @@
           </div>
         </form>
 
-      {% if table %}
+      {% if session["result"] %}
         <table 
           data-toggle="table" 
           data-search="true" 
@@ -70,11 +70,11 @@
             </tr>
           </thead>
           <tbody>            
-            {% for row in table %}
+            {% for row in session["result"] %}
             <tr>
               <td>{{row.masked_ic}}</td>
               <td>{{row.first_name}}</td>
-              {% if row.validity %}
+              {% if row.validity == "Valid" %}
                 <td class="text-success">Valid</td>
               {% else %}
                 <td class="text-danger">Invalid</td>
