@@ -29,25 +29,25 @@
         </form>
 
         <form method="POST">
-          {{ formunit.csrf_token }}
+          {{ formsearch.csrf_token }}
           <div class="form-group">
-            {{ formunit.entry(rows="10", cols="100") }} 
+            {{ formsearch.entry(rows="10", cols="100") }} 
             <br>
             <div class="btn-group" role="group">
-              {{ formunit.submitunit(class="btn btn-success") }}
+              {{ formsearch.submitunit(class="btn btn-success") }}
               {% if table %}
-                {{ formunit.downloadunit(class="btn btn-primary") }}
+                {{ formsearch.downloadunit(class="btn btn-primary") }}
               {% else %}
-                {{ formunit.downloadunit(class="btn btn-primary disabled") }}
+                {{ formsearch.downloadunit(class="btn btn-primary disabled") }}
               {% endif %}
             </div>
-            {% if formunit.entry.errors %} 
-              {% for error in formunit.entry.errors %}
+            {% if formsearch.entry.errors %} 
+              {% for error in formsearch.entry.errors %}
               <span class="badge bg-danger">{{ error }}</span></h1>
               {% endfor %}
             {% endif %}
-            {% if formunit.submitunit.errors %} 
-              {% for error in formunit.submitunit.errors %}
+            {% if formsearch.submitunit.errors %} 
+              {% for error in formsearch.submitunit.errors %}
               <span class="badge bg-danger">{{ error }}</span></h1>
               {% endfor %}
             {% endif %}

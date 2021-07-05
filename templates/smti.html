@@ -25,117 +25,164 @@
           <h4 class="card-title">
             <span>Medic Details</span>
           </h4> 
-          <p>Upload CSV or enter it into field to search or modify</p>
-          <form>
-            <div class="form-group mb-3">
-              <input type="file" class="form-control-file" id="exampleFormControlFile1">
-            </div>
-            <div class="form-group mb-3">
-              <textarea class="form-control" id="exampleFormControlTextarea1" rows="3">Masked NRIC, First Word Of Name</textarea>
-            </div>
-          </form>
-          <div class="btn-group btn-group-toggle" data-toggle="buttons">
-            <button type="submit" class="btn btn-success" onclick="alert('File downloading')">
-              Search
-            </button>
-            <button type="submit" class="btn btn-warning" onclick="alert('File downloading')">
-              Modify
-            </button>
-            <button type="submit" class="btn btn-primary" onclick="alert('File downloading')">
-              Download Result
-            </button>            
-          </div>          
-          <table data-toggle="table" data-search="true" data-show-columns="true">
-            <thead>
-              <tr>
-                <th data-sortable="true">Masked NRIC</th>
-                <th data-sortable="true">Full Name</th>
-                <th data-sortable="true">Eligibility Course</th>
-                <th data-sortable="true">Eligibility Course Completion Date</th>
-                <th data-sortable="true">AMPT</th>
-                <th data-sortable="true">AMPT Completion Date</th>
-                <th data-sortable="true">AED+ Course</th>
-                <th data-sortable="true">AED+ Course Completion Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>054F</td>
-                <td>LIM SHONG BOON</td>
-                <td>Emergency Medical Tecnician</td>
-                <td>5 January 2021</td>
-                <td>NA</td>
-                <td>NA</td>
-                <td>AED</td>
-                <td>10 February 2023</td>
-              </tr>
-              <tr>
-                <td>346F</td>
-                <td>SAM YEE</td>
-                <td>Medic Medical Vocational Training</td>
-                <td>5 January 2021</td>
-                <td>NA</td>
-                <td>NA</td>
-                <td>AED</td>
-                <td>10 February 2021</td>
-              </tr>
-            </tbody>
-          </table>
+          <p>Upload Excel file or enter it into field to search or modify</p>
+
+            <form method="POST" enctype="multipart/form-data" class="mb-2">
+              {{ formxls.csrf_token }}
+              <div class="form-group">
+                {{ formxls.file_smti(button_map={'submitxls_smti':'primary'}) }} {{ formxls.submitxls_smti(class="btn btn-primary btn-sm") }}
+                {% if formxls.file_smti.errors %} 
+                  {% for error in formxls.file_smti.errors %}
+                  <span class="badge bg-danger">{{ error }}</span></h1>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </form>
+
+            <form method="POST">
+              {{ formsearch.csrf_token }}
+              <div class="form-group">
+                {{ formsearch.entry_smti(rows="10", cols="100") }} 
+                <br>
+                <div class="btn-group" role="group">
+                  {{ formsearch.submit_smti(class="btn btn-success") }}
+                  {% if table %}
+                    {{ formsearch.download_smti(class="btn btn-primary") }}
+                  {% else %}
+                    {{ formsearch.download_smti(class="btn btn-primary disabled") }}
+                  {% endif %}
+                </div>
+                {% if formsearch.entry_smti.errors %} 
+                  {% for error in formsearch.entry_smti.errors %}
+                  <span class="badge bg-danger">{{ error }}</span></h1>
+                  {% endfor %}
+                {% endif %}
+                {% if formsearch.submit_smti.errors %} 
+                  {% for error in formsearch.submit_smti.errors %}
+                  <span class="badge bg-danger">{{ error }}</span></h1>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </form>
+
+          {% if table %}
+            <table 
+              data-toggle="table" 
+              data-search="true" 
+              data-show-columns="true"
+              data-pagination="true">
+              <thead>
+                <tr>
+                  <th data-sortable="true">Masked NRIC</th>
+                  <th data-sortable="true">Name (First Word)</th>
+                  <th data-sortable="true">Peacetime Validity</th>
+                  <th data-sortable="true">Peacetime Expiry Date</th>
+                  <th data-sortable="true">Peacetime Balance Duration (days)</th>
+                  <th data-sortable="true">Vocation Course Name</th>
+                  <th data-sortable="true">Vocation Course Completed Date</th>
+                  <th data-sortable="true">AMPT Completed Date</th>
+                  <th data-sortable="true">AED Course Name</th>
+                  <th data-sortable="true">AED Course Completion Date</th>
+                  <th data-sortable="true">AED Certificate Number</th>
+                </tr>
+              </thead>
+              <tbody>            
+                {% for row in table %}
+                <tr>
+                  <td>{{row.masked_ic}}</td>
+                  <td>{{row.first_name}}</td>
+                  {% if row.validity %}
+                    <td class="text-success">Valid</td>
+                  {% else %}
+                    <td class="text-danger">Invalid</td>
+                  {% endif %}
+                  <td>{{row.expiry_date}}</td>
+                  <td>{{row.duration}}</td>
+                  <td>{{row.course_name}}</td>
+                  <td>{{row.course_date}}</td>
+                  <td>{{row.ampt_date}}</td>
+                  <td>{{row.aed_name}}</td>
+                  <td>{{row.aed_date}}</td>
+                  <td>{{row.aed_cert}}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
         </div>
       </div>
 
       <div class="tab-pane fade" id="user" role="tabpanel" aria-labelledby="user-tab">
         <div class="card-body">
           <h4 class="card-title">
-            <span>Unit Details</span>
-          </h4>
-          <p>Upload CSV or enter it into field to search or modify</p>
-          <form>
-            <div class="form-group mb-3">
-              <input type="file" class="form-control-file" id="exampleFormControlFile1">
-            </div>
-            <div class="form-group mb-3">
-              <textarea class="form-control" id="exampleFormControlTextarea1" rows="3">Masked NRIC, First Word Of Name</textarea>
-            </div>
-          </form>
-          <div class="btn-group btn-group-toggle" data-toggle="buttons">
-            <button type="submit" class="btn btn-success" onclick="alert('File downloading')">
-              Search
-            </button>
-            <button type="submit" class="btn btn-warning" onclick="alert('File downloading')">
-              Modify
-            </button>
-            <button type="submit" class="btn btn-primary" onclick="alert('File downloading')">
-              Download Result
-            </button>            
-          </div>             
-          <table data-toggle="table" data-search="true" data-show-columns="true">
-            <thead>
-              <tr>
-                <th data-sortable="true">Masked NRIC</th>
-                <th data-sortable="true">Name</th>
-                <th data-sortable="true">Unit Admin</th>
-                <th data-sortable="true">TI Admin</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>054F</td>
-                <td>LIM SHONG BOON</td>
-                <td>True</td>
-                <td>False</td>
-              </tr>
-              <tr>
-                <td>346F</td>
-                <td>SAM YEE</td>
-                <td>False</td>
-                <td>True</td>
-              </tr>
-            </tbody>
-          </table>
+            <span>Medic Details</span>
+          </h4> 
+          <p>Upload Excel file or enter it into field to search or modify</p>
+
+            <form method="POST" enctype="multipart/form-data" class="mb-2">
+              {{ formxlsp.csrf_token }}
+              <div class="form-group">
+                {{ formxlsp.file_profile(button_map={'submitxls':'primary'}) }} {{ formxlsp.submitxls_profile(class="btn btn-primary btn-sm") }}
+                {% if formxlsp.file_profile.errors %} 
+                  {% for error in formxls.file_profile.errors %}
+                  <span class="badge bg-danger">{{ error }}</span></h1>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </form>
+
+            <form method="POST">
+              {{ formsearchp.csrf_token }}
+              <div class="form-group">
+                {{ formsearchp.entry_profile(rows="10", cols="100") }} 
+                <br>
+                <div class="btn-group" role="group">
+                  {{ formsearchp.submit_profile(class="btn btn-success") }}
+                  {% if table %}
+                    {{ formsearchp.download_profile(class="btn btn-primary") }}
+                  {% else %}
+                    {{ formsearchp.download_profile(class="btn btn-primary disabled") }}
+                  {% endif %}
+                </div>
+                {% if formsearchp.entry_profile.errors %} 
+                  {% for error in formsearchp.entry_profile.errors %}
+                  <span class="badge bg-danger">{{ error }}</span></h1>
+                  {% endfor %}
+                {% endif %}
+                {% if formsearchp.submit_profile.errors %} 
+                  {% for error in formsearchp.submit_profile.errors %}
+                  <span class="badge bg-danger">{{ error }}</span></h1>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </form>
+
+          {% if table_p %}
+            <table 
+              data-toggle="table" 
+              data-search="true" 
+              data-show-columns="true"
+              data-pagination="true">
+              <thead>
+                <tr>
+                  <th data-sortable="true">Masked NRIC</th>
+                  <th data-sortable="true">Name (First Word)</th>
+                  <th data-sortable="true">Access Rights</th>
+                </tr>
+              </thead>
+              <tbody>            
+                {% for row in table_p %}
+                <tr>
+                  <td>{{row.masked_ic}}</td>
+                  <td>{{row.first_name}}</td>
+                  <td>{{row.rights}}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
         </div>
       </div>
-
     </div>
   </div>
 </div>
