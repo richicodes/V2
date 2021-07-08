@@ -51,9 +51,6 @@ def multi_getattr(obj, attr, default = "Invalid"):
   for i in attributes:
     try:
       obj = getattr(obj, i)
-    except AttributeError:
-      if default:
-        return default
-      else:
-        raise
+    except:
+      return default
   return obj

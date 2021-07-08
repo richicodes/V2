@@ -2,7 +2,7 @@
 
 {% block cardbody %}
 <h4 class="card-title">
-  <span>TI Name</span>
+  <span>SMTI eMedic Card SMTI Admin View</span>
   <a type="submit" class="btn btn-primary float-end" href="{{ url_for('inet') }}">Logout</a>
 </h4>
 {% endblock %}
@@ -144,6 +144,8 @@
                     {{ formsearchp.download_profile(class="btn btn-primary disabled") }}
                   {% endif %}
                 </div>
+                {{ formsearchp.modify_profile(class="btn btn-warning float-end") }}
+                <br>
                 {% if formsearchp.entry_profile.errors %} 
                   {% for error in formsearchp.entry_profile.errors %}
                   <span class="badge bg-danger">{{ error }}</span></h1>

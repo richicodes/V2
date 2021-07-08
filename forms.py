@@ -35,3 +35,4 @@ class profileSearchForm(FlaskForm):
   entry_profile = TextAreaField(validators=[InputRequired(message="No input to process")])
   submit_profile = SubmitField('Search')
   download_profile = SubmitField('Download')
+  modify_profile = SubmitField('Modify')

@@ -2,14 +2,13 @@ from flask import Flask, render_template, request, flash, Markup, jsonify, redir
 
 from flask_wtf import CSRFProtect
 
-from flask_sqlalchemy import SQLAlchemy
-
 from pandas import read_excel
 
 from datetime import datetime
 
 from forms import *
 from helper import *
+from models import *
 
 import os, random, math, csv, io
 
@@ -18,52 +17,8 @@ app.config['SECRET_KEY'] = os.environ['secret_key']
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///eMedicInternet.db'
 app.config['SQLALCHEMY_BINDS'] = {"intranet":'sqlite:///eMedicIntranet.db'}
 
-db = SQLAlchemy(app)
+db.init_app(app)
 csrf = CSRFProtect(app)
-
-class MaskedIC(db.Model):
-  __tablename__ = "masked_ic"
-  uuid = db.Column(db.String(), primary_key=True, unique=True, nullable=False)
-  masked_ic = db.Column(db.String(), nullable=False)
-
-class AMPT(db.Model):
-  __tablename__ = "ampt"
-  uuid = db.Column(db.String(), db.ForeignKey('masked_ic.uuid'), primary_key=True, unique=True, nullable=False)
-  ampt_date = db.Column(db.Date(), nullable=False)
-
-class VocDate(db.Model):
-  __tablename__ = "voc_date"
-  uuid = db.Column(db.String(), db.ForeignKey('masked_ic.uuid'), primary_key=True, unique=True, nullable=False)
-  course_date = db.Column(db.Date(), nullable=False)
-
-class AED(db.Model):
-  __bind_key__= "intranet"
-  __tablename__ = "aed"
-  uuid = db.Column(db.String(), db.ForeignKey('full_name.uuid'), primary_key=True, unique=True, nullable=False)
-  aed_date = db.Column(db.Date(), nullable=False)
-  aed_name = db.Column(db.String(), nullable=False)
-  aed_cert = db.Column(db.String(), unique=True, nullable=False)
-
-class VocName(db.Model):
-  __bind_key__= "intranet"
-  __tablename__ = "voc_name"
-  uuid = db.Column(db.String(), db.ForeignKey('full_name.uuid'), primary_key=True, unique=True, nullable=False)
-  course_name = db.Column(db.String(), nullable=False)
-
-class FullName(db.Model):
-  __bind_key__= "intranet"
-  __tablename__ = "full_name"
-  uuid = db.Column(db.String(), primary_key=True, unique=True, nullable=False)
-  full_name = db.Column(db.String(), nullable=False)
-
-class Profile(db.Model):
-  __bind_key__= "intranet"
-  __tablename__ = "profile"
-  uuid = db.Column(db.String(), db.ForeignKey('full_name.uuid'), primary_key=True, unique=True, nullable=False)
-  rights = db.Column(db.String(), nullable=False)
-
-db.create_all()
-
 
 # flask routes
 @app.route('/')
@@ -86,12 +41,13 @@ def medic():
     .join(VocDate)
     .filter(MaskedIC.uuid==session['uuid'])
     .first())
-  ampt = medicQuery.AMPT.ampt_date
-  voc = medicQuery.VocDate.course_date
-  validity, expDate, duration = expiryCalculator(ampt, voc)
-  if validity == None:
+  if medicQuery == None:
     return redirect(url_for('invalid'))
-  if not validity :
+  else:    
+    ampt = multi_getattr(medicQuery,"AMPT.ampt_date", None)
+    voc = multi_getattr(medicQuery,"VocDate.course_date", None)
+    validity, expDate, duration = expiryCalculator(ampt, voc)
+  if validity == "Invalid" :
     duration *= -1
   ic = medicQuery.MaskedIC.masked_ic
   return render_template('medic.html', ic = ic, exp = expDate.strftime("%-d %B %Y"), valid = validity, months = math.floor(duration/30.5), days = duration)
@@ -108,7 +64,7 @@ def inet():
 def unit():
   formxls = unitXlsxForm()
   formsearch = unitSearchForm(
-    entry='"Masked NRIC (123X)","FIRSTWORDOFNAME"'
+    entry='"Masked NRIC (123X)","FULL NAME"'
   )
   if 'result' not in session:
     session['result'] = None
@@ -139,19 +95,16 @@ def unit():
       for query in queries[1:]:
         uuids = []
         ICQuery = (
-          db.session.query(MaskedIC).
+          MaskedIC.query.
           filter(MaskedIC.masked_ic==query[0]).
           all()
         )
 
         for uuid in [result.uuid for result in ICQuery]:
           NameQuery = (
-            db.session.query(FullName).
+            FullName.query.
             filter(FullName.uuid==uuid)
-            .filter(
-              (FullName.full_name.startswith(query[1]+" ")) |
-              (FullName.full_name==query[1])
-            )        
+            .filter(FullName.full_name==query[1])        
             .all()
           )
           uuids += [result.uuid for result in NameQuery]
@@ -198,7 +151,7 @@ def unit():
           })
 
     except EmptyQuery:
-      formsearch.submitunit.errors.append("No search query detected in search field. Click 'Upload' to populate search field with file.")
+      formsearch.submitunit.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
       print("error")
     except:
       formsearch.submitunit.errors.append("The query is formatted incorrectly")
@@ -261,16 +214,16 @@ def smti():
       for query in queries[1:]:
         uuids = []
         ICQuery = (
-          db.session.query(MaskedIC).
+          MaskedIC.query.
           filter(MaskedIC.masked_ic==query[0]).
           all()
         )
 
         for uuid in [result.uuid for result in ICQuery]:
           NameQuery = (
-            db.session.query(FullName)
-            .filter(FullName.uuid==uuid)
-            .filter(FullName.full_name == query[1])
+            FullName.query.
+            filter(FullName.uuid==uuid)
+            .filter(FullName.full_name==query[1])        
             .all()
           )
           uuids += [result.uuid for result in NameQuery]
@@ -342,7 +295,7 @@ def smti():
           print(vars(session))
 
     except EmptyQuery:
-      formsearch.submit_smti.errors.append("No search query detected in search field. Click 'Upload' to populate search field with file.")
+      formsearch.submit_smti.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
     except:
       formsearch.submit_smti.errors.append("The query is formatted incorrectly")
   
@@ -381,16 +334,16 @@ def smti():
       for query in queries[1:]:
         uuids = []
         ICQuery = (
-          db.session.query(MaskedIC).
+          MaskedIC.query.
           filter(MaskedIC.masked_ic==query[0]).
           all()
         )
 
         for uuid in [result.uuid for result in ICQuery]:
           NameQuery = (
-            db.session.query(FullName)
-            .filter(FullName.uuid==uuid)
-            .filter(FullName.full_name == query[1])
+            FullName.query.
+            filter(FullName.uuid==uuid)
+            .filter(FullName.full_name==query[1])        
             .all()
           )
           uuids += [result.uuid for result in NameQuery]
@@ -425,7 +378,7 @@ def smti():
           })
 
     except EmptyQuery:
-      formsearchp.submit_profile.errors.append("No search query detected in search field. Click 'Upload' to populate search field with file.")
+      formsearchp.submit_profile.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
     except:
       formsearchp.submit_profile.errors.append("The query is formatted incorrectly")
   
@@ -436,6 +389,74 @@ def smti():
       column_order=["masked_ic", "full_name", "rights"],
       filename_suffix="profiles"
       )
+
+  if formsearchp.modify_profile.data and formsearchp.validate():
+    session['tab'] = "profile"
+    q = formsearchp.entry_profile.data.splitlines()
+    class EmptyQuery(Exception):
+      """Exception raised when query is empty"""
+      pass
+
+    class QueryError(Exception):
+      """Exception raised when there is an query error"""
+      pass
+
+    try:
+      queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
+      session['result_p'] = []
+      error= ""
+
+      print(queries)
+
+      if len(queries) == 1:
+        raise EmptyQuery()
+
+      if not "uuid" in queries[0]:
+        error.append("UUID must be included")
+        raise QueryError() 
+
+      for query in queries:
+
+        query = dict(zip(queries[0], query))
+
+        for column, value in query:
+          if value == "":
+            del query[column]
+
+        if(
+            FullName.query.filter(FullName.uuid==query["uuid"]) == None or
+            MaskedIC.query.filter(MaskedIC.uuid==query["uuid"]) == None
+          ) and not (
+            "masked_ic" in query and 
+            "full_name" in query
+          ):
+
+          error.append(query["uuid"] + " does not exist. Create entry by defining 'masked_ic and 'full_name'")
+        
+        else:
+          for column, value in query:
+            if value == "#DEL": 
+
+
+
+
+      
+
+
+        
+        
+        
+        
+        
+        
+    except EmptyQuery:
+      formsearchp.submit_profile.errors.append("No modify query detected in input field. Click 'Upload' to populate input field with file.")
+
+    except QueryError:
+      formsearchp.submit_profile.errors.append("Query Error")
+
+    except:
+      formsearchp.submit_profile.errors.append("The query is formatted incorrectly")
          
   return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp)
 
