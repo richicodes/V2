@@ -75,15 +75,25 @@
                 <tr>
                   <th data-sortable="true">Masked NRIC</th>
                   <th data-sortable="true">Full Name</th>
-                  <th data-sortable="true">Peacetime Validity</th>
-                  <th data-sortable="true">Peacetime Expiry Date</th>
-                  <th data-sortable="true">Peacetime Balance Duration (days)</th>
+                  <th data-sortable="true" rowspan="2">Peacetime Validity</th>
+                  <th data-sortable="true" rowspan="2">Peacetime Expiry Date</th>
+                  <th data-sortable="true" rowspan="2">Peacetime Balance Duration (days)</th>
                   <th data-sortable="true">Vocation Course Name</th>
                   <th data-sortable="true">Vocation Course Completed Date</th>
                   <th data-sortable="true">AMPT Completed Date</th>
                   <th data-sortable="true">AED Course Name</th>
                   <th data-sortable="true">AED Course Completion Date</th>
                   <th data-sortable="true">AED Certificate Number</th>
+                </tr>
+                <tr>
+                  <th data-sortable="true"><code>masked_ic</code></th>
+                  <th data-sortable="true"><code>full_name </code></th>
+                  <th data-sortable="true"><code>course_name</code></th>
+                  <th data-sortable="true"><code>course_date</code></th>
+                  <th data-sortable="true"><code>ampt_date</code></th>
+                  <th data-sortable="true"><code>aed_name</code></th>
+                  <th data-sortable="true"><code>aed_date</code></th>
+                  <th data-sortable="true"><code>aed_cert</code></th>
                 </tr>
               </thead>
               <tbody>            
@@ -144,7 +154,12 @@
                     {{ formsearchp.download_profile(class="btn btn-primary disabled") }}
                   {% endif %}
                 </div>
-                {{ formsearchp.modify_profile(class="btn btn-warning float-end") }}
+                {{ formsearchp.modify_profile(
+                  class="btn btn-warning float-end", 
+                  id='profile-modify',
+                  **{'onclick':'openModal()'}
+                  ) 
+                }}
                 <br>
                 {% if formsearchp.entry_profile.errors %} 
                   {% for error in formsearchp.entry_profile.errors %}
@@ -171,6 +186,11 @@
                   <th data-sortable="true">Full Name</th>
                   <th data-sortable="true">Access Rights</th>
                 </tr>
+                <tr>
+                  <th data-sortable="true"><code>masked_ic</code></th>
+                  <th data-sortable="true"><code>full_name </code></th>
+                  <th data-sortable="true"><code>rights</code></th>
+                </tr>
               </thead>
               <tbody>            
                 {% for row in session["result_p"] %}
@@ -188,5 +208,44 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block modal%}
+<!-- Modal -->
+<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        ...
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<script>
+document.getElementById("myAnchor").addEventListener("click", function(event){
+  event.preventDefault()
+});
+
+var exampleModal = new bootstrap.Modal(document.getElementById('exampleModal'), {
+  keyboard: false
+})
+
+function openModal() {
+  exampleModal.show()
+}
+</script>
 {% endblock %}

@@ -393,7 +393,7 @@ def smti():
   if formsearchp.modify_profile.data and formsearchp.validate():
     session['tab'] = "profile"
     q = formsearchp.entry_profile.data.splitlines()
-    class EmptyQuery(Exception):
+    ''' class EmptyQuery(Exception):
       """Exception raised when query is empty"""
       pass
 
@@ -435,10 +435,11 @@ def smti():
         
         else:
           for column, value in query:
-            if value == "#DEL": 
+            if value == "#DEL":  '''
 
 
-
+    session["modal"] = "Test Modal"
+    print(session["modal"])
 
       
 
@@ -449,14 +450,14 @@ def smti():
         
         
         
-    except EmptyQuery:
+    ''' except EmptyQuery:
       formsearchp.submit_profile.errors.append("No modify query detected in input field. Click 'Upload' to populate input field with file.")
 
     except QueryError:
       formsearchp.submit_profile.errors.append("Query Error")
 
     except:
-      formsearchp.submit_profile.errors.append("The query is formatted incorrectly")
+      formsearchp.submit_profile.errors.append("The query is formatted incorrectly") '''
          
   return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp)
 
