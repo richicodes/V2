@@ -156,8 +156,7 @@
                 </div>
                 {{ formsearchp.modify_profile(
                   class="btn btn-warning float-end", 
-                  id='profile-modify',
-                  **{'onclick':'openModal()'}
+                  id='profile-modify'
                   ) 
                 }}
                 <br>
@@ -208,15 +207,16 @@
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block modal%}
 <!-- Modal -->
-<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+<div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+        <h5 class="modal-title" id="profileModalLabel">Modal title</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -235,17 +235,14 @@
 {% block scripts %}
 {{ super() }}
 
+{% if session["modal"] %}
 <script>
-document.getElementById("myAnchor").addEventListener("click", function(event){
-  event.preventDefault()
-});
-
-var exampleModal = new bootstrap.Modal(document.getElementById('exampleModal'), {
+var profileModal = new bootstrap.Modal(document.getElementById('profileModal'), {
   keyboard: false
 })
 
-function openModal() {
-  exampleModal.show()
-}
+profileModal.show()
 </script>
+{% endif %}
+
 {% endblock %}

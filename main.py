@@ -37,9 +37,9 @@ def home():
 def medic():
   medicQuery = (
     db.session.query(MaskedIC, AMPT, VocDate)
-    .join(AMPT)
-    .join(VocDate)
     .filter(MaskedIC.uuid==session['uuid'])
+    .join(AMPT)
+    .join(VocDate)    
     .first())
   if medicQuery == None:
     return redirect(url_for('invalid'))
@@ -92,8 +92,11 @@ def unit():
       if len(queries) == 1:
         raise EmptyQuery()
 
+      uuids = []
+
       for query in queries[1:]:
-        uuids = []
+        query_uuids = []
+
         ICQuery = (
           MaskedIC.query.
           filter(MaskedIC.masked_ic==query[0]).
@@ -102,45 +105,15 @@ def unit():
 
         for uuid in [result.uuid for result in ICQuery]:
           NameQuery = (
-            FullName.query.
-            filter(FullName.uuid==uuid)
+            FullName.query
+            .filter(FullName.uuid==uuid)
             .filter(FullName.full_name==query[1])        
             .all()
           )
-          uuids += [result.uuid for result in NameQuery]
+          query_uuids = [result.uuid for result in NameQuery]
 
-        if len(uuids) > 0:
-          for uuid in uuids:
-            InternetQuery = (
-              db.session.query(MaskedIC, AMPT, VocDate)
-              .join(AMPT)
-              .join(VocDate)
-              .filter(MaskedIC.uuid==uuid)
-              .first()
-            )
-
-            if InternetQuery == None:
-              session['result'].append({
-                "masked_ic": query[0],
-                "first_name": query[1],
-                "validity": "Invalid",
-                "expiry_date": "Invalid",
-                "duration": "Invalid" 
-              })
-            else:
-              validity, expDate, duration = expiryCalculator(
-                date1=multi_getattr(InternetQuery, "VocDate.course_date", None),
-                date2=multi_getattr(InternetQuery, "AMPT.ampt_date", None)
-              )
-
-              session['result'].append({
-                "masked_ic": query[0],
-                "first_name": query[1],
-                "validity": validity,
-                "expiry_date": multi_getattr(expDate, 'strftime')("%Y-%m-%d"),
-                "duration": duration
-                }) 
-
+        if len(query_uuids) > 0:
+          uuids += query_uuids
         else:
           session['result'].append({
             "masked_ic": query[0],
@@ -149,6 +122,44 @@ def unit():
             "expiry_date": "Invalid",
             "duration": "Invalid" 
           })
+
+      InternetQuery = (
+        db.session.query(MaskedIC, AMPT, VocDate)
+        .outerjoin(AMPT)
+        .outerjoin(VocDate)
+        .filter(MaskedIC.uuid.in_(uuids))
+        .all()
+      )
+
+      for row in range(len(uuids)):
+
+        result = {
+          "masked_ic": query[0],
+          "first_name": query[1],
+          "validity": "Invalid",
+          "expiry_date": "Invalid",
+          "duration": "Invalid" 
+        }
+
+        try:
+          for table in InternetQuery[row]:
+            table_dict = table.__dict__
+            del table_dict['uuid']
+            del table_dict['_sa_instance_state']
+            for column, value in table_dict.items():
+              result[column]=value
+        except:
+          pass
+
+        try:
+          result["validity"], result["expiry_date"], result["duration"] = expiryCalculator(
+            date1=result["course_date"],
+            date2=result["ampt_date"]
+          )
+        except:
+          pass
+
+        session["result"].append(result)
 
     except EmptyQuery:
       formsearch.submitunit.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
@@ -186,6 +197,9 @@ def smti():
   if 'tab' not in session:
     session['tab'] = "smti"
 
+  if 'modal' not in session:
+    session['modal'] = None
+
   if formxls.submitxls_smti.data and formxls.validate():
     session['tab'] = "smti"
     f = formxls.file_smti.data
@@ -211,8 +225,11 @@ def smti():
       if len(queries) == 1:
         raise EmptyQuery()
 
+      uuids = []
+
       for query in queries[1:]:
-        uuids = []
+        query_uuids = []
+
         ICQuery = (
           MaskedIC.query.
           filter(MaskedIC.masked_ic==query[0]).
@@ -221,78 +238,91 @@ def smti():
 
         for uuid in [result.uuid for result in ICQuery]:
           NameQuery = (
-            FullName.query.
-            filter(FullName.uuid==uuid)
+            FullName.query
+            .filter(FullName.uuid==uuid)
             .filter(FullName.full_name==query[1])        
             .all()
           )
-          uuids += [result.uuid for result in NameQuery]
+          query_uuids = [result.uuid for result in NameQuery]
 
-        if len(uuids) > 0:
-          for uuid in uuids:
-            InternetQuery = (
-              db.session.query(MaskedIC, AMPT, VocDate)
-              .join(AMPT)
-              .join(VocDate)
-              .filter(MaskedIC.uuid==uuid)
-              .first()
-            )
-
-            IntranetQuery = (
-              db.session.query(FullName, VocName, AED)
-              .join(VocName)
-              .join(AED)
-              .filter(FullName.uuid==uuid)
-              .first()
-            )
-
-            if InternetQuery == None and IntranetQuery == None:
-              session['result'].append({
-              "masked_ic": query[0],
-              "full_name": query[1],
-              "validity":   "Invalid",
-              "expiry_date": "Invalid",
-              "duration": "Invalid",
-              "course_name": "Invalid",
-              "course_date": "Invalid",
-              "ampt_date": "Invalid",
-              "aed_name": "Invalid",
-              "aed_date": "Invalid",
-              "aed_cert": "Invalid"
-              }) 
-            else:
-              validity, expDate, duration = expiryCalculator(
-                date1=multi_getattr(InternetQuery, "VocDate.course_date", None),
-                date2=multi_getattr(InternetQuery, "AMPT.ampt_date", None)
-              )
-              session['result'].append({
-              "masked_ic": query[0],
-              "full_name": query[1],
-              "validity": validity,
-              "expiry_date": multi_getattr(expDate,"strftime")("%Y-%m-%d"),
-              "duration": duration,
-              "course_name": multi_getattr(IntranetQuery,"VocName.course_name"),
-              "course_date": multi_getattr(InternetQuery,"VocDate.course_date.strftime")("%Y-%m-%d"),
-              "ampt_date": multi_getattr(InternetQuery,"AMPT.ampt_date.strftime")("%Y-%m-%d"),
-              "aed_name": multi_getattr(IntranetQuery,"AED.aed_name"),
-              "aed_date": multi_getattr(IntranetQuery,"AED.aed_date.strftime")("%Y-%m-%d"),
-              "aed_cert": multi_getattr(IntranetQuery,"AED.aed_cert")
-              }) 
+        if len(query_uuids) > 0:
+          uuids += query_uuids
         else:
           session['result'].append({
-            "masked_ic": query[0],
-            "full_name": query[1],
-            "validity":   "Invalid",
-            "expiry_date": "Invalid",
-            "duration": "Invalid",
-            "course_name": "Invalid",
-            "course_date": "Invalid",
-            "ampt_date": "Invalid",
-            "aed_name": "Invalid",
-            "aed_date": "Invalid",
-            "aed_cert": "Invalid"
-            })
-          print(vars(session))
+          "masked_ic": query[0],
+          "full_name": query[1],
+          "validity":   "Invalid",
+          "expiry_date": "Invalid",
+          "duration": "Invalid",
+          "course_name": "Invalid",
+          "course_date": "Invalid",
+          "ampt_date": "Invalid",
+          "aed_name": "Invalid",
+          "aed_date": "Invalid",
+          "aed_cert": "Invalid"
+          })
+
+      InternetQuery = (
+        db.session.query(MaskedIC, AMPT, VocDate)
+        .outerjoin(AMPT)
+        .outerjoin(VocDate)
+        .filter(MaskedIC.uuid.in_(uuids))
+        .all()
+      )
+
+      IntranetQuery = (
+        db.session.query(FullName, VocName, AED)
+        .outerjoin(VocName)
+        .outerjoin(AED)
+        .filter(FullName.uuid.in_(uuids))
+        .all()
+      )
+
+      for row in range(len(uuids)):
+
+        result = {
+          "masked_ic": "Invalid",
+          "full_name": "Invalid",
+          "validity":   "Invalid",
+          "expiry_date": "Invalid",
+          "duration": "Invalid",
+          "course_name": "Invalid",
+          "course_date": "Invalid",
+          "ampt_date": "Invalid",
+          "aed_name": "Invalid",
+          "aed_date": "Invalid",
+          "aed_cert": "Invalid"
+        }
+
+        try:
+          for table in InternetQuery[row]:
+            table_dict = table.__dict__
+            del table_dict['uuid']
+            del table_dict['_sa_instance_state']
+            for column, value in table_dict.items():
+              result[column]=value
+        except:
+          pass
+
+        try:
+          for table in IntranetQuery[row]:
+            table_dict = table.__dict__
+            del table_dict['uuid']
+            del table_dict['_sa_instance_state']
+            for column, value in table_dict.items():
+              result[column]=value
+        except:
+          pass
+
+        try:
+          result["validity"], result["expiry_date"], result["duration"] = expiryCalculator(
+            date1=result["course_date"],
+            date2=result["ampt_date"]
+          )
+        except:
+          pass
+
+        session["result"].append(result)
 
     except EmptyQuery:
       formsearch.submit_smti.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
@@ -331,8 +361,11 @@ def smti():
       if len(queries) == 1:
         raise EmptyQuery()
 
+      uuids = []
+
       for query in queries[1:]:
-        uuids = []
+        query_uuids = []
+
         ICQuery = (
           MaskedIC.query.
           filter(MaskedIC.masked_ic==query[0]).
@@ -341,41 +374,64 @@ def smti():
 
         for uuid in [result.uuid for result in ICQuery]:
           NameQuery = (
-            FullName.query.
-            filter(FullName.uuid==uuid)
+            FullName.query
+            .filter(FullName.uuid==uuid)
             .filter(FullName.full_name==query[1])        
             .all()
           )
-          uuids += [result.uuid for result in NameQuery]
+          query_uuids = [result.uuid for result in NameQuery]
 
-        if len(uuids) > 0:
-          for uuid in uuids:
-            IntranetQuery = (
-              db.session.query(FullName, Profile)
-              .join(Profile)
-              .filter(FullName.uuid==uuid)
-              .first()
-            )
-
-            if IntranetQuery == None:
-              session['result_p'].append({
-                "masked_ic": query[0],
-                "full_name": query[1],
-                "rights": "Invalid" 
-              })
-            
-            else:
-              session['result_p'].append({
-              "masked_ic": query[0],
-              "full_name": query[1],
-              "rights": multi_getattr(IntranetQuery, "Profile.rights")
-              }) 
+        if len(query_uuids) > 0:
+          uuids += query_uuids
         else:
           session['result_p'].append({
             "masked_ic": query[0],
             "full_name": query[1],
             "rights": "Invalid" 
           })
+
+      InternetQuery = (
+        db.session.query(MaskedIC)
+        .filter(MaskedIC.uuid.in_(uuids))
+        .all()
+      )
+
+      IntranetQuery = (
+        db.session.query(FullName, Profile)
+        .outerjoin(Profile)
+        .filter(FullName.uuid.in_(uuids))
+        .all()
+      )
+
+      for row in range(len(uuids)):
+
+        result = {
+          "masked_ic": query[0],
+          "full_name": query[1],
+          "rights": "Invalid" 
+        }
+
+        try:
+          for table in InternetQuery[row]:
+            table_dict = table.__dict__
+            del table_dict['uuid']
+            del table_dict['_sa_instance_state']
+            for column, value in table_dict.items():
+              result[column]=value
+        except:
+          pass
+
+        try:
+          for table in IntranetQuery[row]:
+            table_dict = table.__dict__
+            del table_dict['uuid']
+            del table_dict['_sa_instance_state']
+            for column, value in table_dict.items():
+              result[column]=value
+        except:
+          pass
+
+        session["result_p"].append(result)
 
     except EmptyQuery:
       formsearchp.submit_profile.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
@@ -393,7 +449,7 @@ def smti():
   if formsearchp.modify_profile.data and formsearchp.validate():
     session['tab'] = "profile"
     q = formsearchp.entry_profile.data.splitlines()
-    ''' class EmptyQuery(Exception):
+    class EmptyQuery(Exception):
       """Exception raised when query is empty"""
       pass
 
@@ -402,7 +458,7 @@ def smti():
       pass
 
     try:
-      queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
+      ''' queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
       session['result_p'] = []
       error= ""
 
@@ -412,7 +468,7 @@ def smti():
         raise EmptyQuery()
 
       if not "uuid" in queries[0]:
-        error.append("UUID must be included")
+        error.append("UUID must be included/n")
         raise QueryError() 
 
       for query in queries:
@@ -431,33 +487,30 @@ def smti():
             "full_name" in query
           ):
 
-          error.append(query["uuid"] + " does not exist. Create entry by defining 'masked_ic and 'full_name'")
+          error.append(query["uuid"] + " does not exist. Create entry by defining 'masked_ic and 'full_name'/n")
         
         else:
           for column, value in query:
-            if value == "#DEL":  '''
+            if column == "rights":
+              if value == "#DEL":
+                 
+              else: '''
 
 
-    session["modal"] = "Test Modal"
-    print(session["modal"])
-
-      
+      session["modal"] = "Test Modal"
+      print(session["modal"])
 
 
-        
-        
-        
-        
-        
-        
-    ''' except EmptyQuery:
+    except EmptyQuery:
       formsearchp.submit_profile.errors.append("No modify query detected in input field. Click 'Upload' to populate input field with file.")
+
+      session["profile"]
 
     except QueryError:
       formsearchp.submit_profile.errors.append("Query Error")
 
     except:
-      formsearchp.submit_profile.errors.append("The query is formatted incorrectly") '''
+      formsearchp.submit_profile.errors.append("The query is formatted incorrectly")
          
   return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp)
 
