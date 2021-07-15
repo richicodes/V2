@@ -63,7 +63,7 @@
           <thead>
             <tr>
               <th data-sortable="true">Masked NRIC</th>
-              <th data-sortable="true">Name (First Word)</th>
+              <th data-sortable="true">Full Name</th>
               <th data-sortable="true">Peacetime Validity</th>
               <th data-sortable="true">Expiry Date</th>
               <th data-sortable="true">Duration (days)</th>
@@ -73,7 +73,7 @@
             {% for row in session["result"] %}
             <tr>
               <td>{{row.masked_ic}}</td>
-              <td>{{row.first_name}}</td>
+              <td>{{row.full_name}}</td>
               {% if row.validity == "Valid" %}
                 <td class="text-success">Valid</td>
               {% else %}

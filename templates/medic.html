@@ -6,7 +6,7 @@
   <div class="card-body">
     <h3 class="card-title">
       <span>XXXXX{{ic}}</span>
-      {% if valid == "valid" %}
+      {% if valid == "Valid" %}
         <span class="badge bg-success">Valid</span>
       {% else %}
         <span class="badge bg-danger">Invalid</span>
@@ -15,7 +15,7 @@
     <hr>
     <p class="card-text">
       Date of Expiry: <b>{{ exp }}</b><br>
-      {% if valid %}
+      {% if valid == "Valid" %}
         Expires in 
       {% else %}
         Has expired for

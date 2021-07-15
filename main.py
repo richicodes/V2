@@ -10,7 +10,7 @@ from forms import *
 from helper import *
 from models import *
 
-import os, random, math, csv, io
+import os, random, math, csv, io, re
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ['secret_key']
@@ -41,12 +41,12 @@ def medic():
     .join(AMPT)
     .join(VocDate)    
     .first())
-  if medicQuery == None:
-    return redirect(url_for('invalid'))
-  else:    
-    ampt = multi_getattr(medicQuery,"AMPT.ampt_date", None)
-    voc = multi_getattr(medicQuery,"VocDate.course_date", None)
+  try:
+    ampt = medicQuery.AMPT.ampt_date
+    voc = medicQuery.VocDate.course_date
     validity, expDate, duration = expiryCalculator(ampt, voc)
+  except:
+    return redirect(url_for('invalid'))
   if validity == "Invalid" :
     duration *= -1
   ic = medicQuery.MaskedIC.masked_ic
@@ -97,6 +97,9 @@ def unit():
       for query in queries[1:]:
         query_uuids = []
 
+        dateDict = {}
+
+
         ICQuery = (
           MaskedIC.query.
           filter(MaskedIC.masked_ic==query[0]).
@@ -117,7 +120,7 @@ def unit():
         else:
           session['result'].append({
             "masked_ic": query[0],
-            "first_name": query[1],
+            "full_name": query[1],
             "validity": "Invalid",
             "expiry_date": "Invalid",
             "duration": "Invalid" 
@@ -131,11 +134,17 @@ def unit():
         .all()
       )
 
+      IntranetQuery = (
+        db.session.query(FullName)
+        .filter(FullName.uuid.in_(uuids))
+        .all()
+      )
+
       for row in range(len(uuids)):
 
         result = {
-          "masked_ic": query[0],
-          "first_name": query[1],
+          "masked_ic": "Invalid",
+          "full_name": "Invalid",
           "validity": "Invalid",
           "expiry_date": "Invalid",
           "duration": "Invalid" 
@@ -147,19 +156,34 @@ def unit():
             del table_dict['uuid']
             del table_dict['_sa_instance_state']
             for column, value in table_dict.items():
-              result[column]=value
+              if column in ["course_date", "ampt_date"]:
+                dateDict[column] = value
+                result[column] = value.strftime("%Y-%b-%d")
+              else:
+                result[column]=value
         except:
           pass
 
         try:
+          table_dict = IntranetQuery[row].__dict__
+          result["full_name"]=table_dict["full_name"]          
+        except:
+          pass
+
+        #print(IntranetQuery[row].__dict__)
+
+        try:
           result["validity"], result["expiry_date"], result["duration"] = expiryCalculator(
-            date1=result["course_date"],
-            date2=result["ampt_date"]
+            date1=dateDict["course_date"],
+            date2=dateDict["ampt_date"]
           )
+          result["expiry_date"]=result["expiry_date"].strftime("%Y-%b-%d")
         except:
           pass
 
         session["result"].append(result)
+      
+      print(session["result"])
 
     except EmptyQuery:
       formsearch.submitunit.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
@@ -170,7 +194,7 @@ def unit():
   if formsearch.downloadunit.data and formsearch.validate():
     return sendExcel(
       dict_in=session['result'], 
-      column_order=["masked_ic", "first_name", "validity", "expiry_date", "duration"], 
+      column_order=["masked_ic", "full_name", "validity", "expiry_date", "duration"], 
       filename_suffix="eMedic"
       )
          
@@ -188,17 +212,9 @@ def smti():
     entry_profile='"Masked NRIC (123X)","FULL NAME"'
   )
 
-  if 'result' not in session:
-    session['result'] = None
-
-  if 'result_p' not in session:
-    session['result_p'] = None
-
-  if 'tab' not in session:
-    session['tab'] = "smti"
-
-  if 'modal' not in session:
-    session['modal'] = None
+  for key in ['result', 'result_p','tab','profile_modify_check','profile_modify_header']:
+    if key not in session:
+      session[key] = None
 
   if formxls.submitxls_smti.data and formxls.validate():
     session['tab'] = "smti"
@@ -280,6 +296,8 @@ def smti():
 
       for row in range(len(uuids)):
 
+        dateDict = {}
+
         result = {
           "masked_ic": "Invalid",
           "full_name": "Invalid",
@@ -300,7 +318,11 @@ def smti():
             del table_dict['uuid']
             del table_dict['_sa_instance_state']
             for column, value in table_dict.items():
-              result[column]=value
+              if column in ["course_date", "ampt_date"]:
+                dateDict[column] = value
+                result[column] = value.strftime("%Y-%b-%d")
+              else:
+                result[column]=value
         except:
           pass
 
@@ -310,15 +332,21 @@ def smti():
             del table_dict['uuid']
             del table_dict['_sa_instance_state']
             for column, value in table_dict.items():
-              result[column]=value
+              if column in ["aed_date"]:
+                result[column] = value.strftime("%Y-%b-%d")
+              else:
+                result[column]=value
         except:
           pass
 
+        print(dateDict)
+
         try:
           result["validity"], result["expiry_date"], result["duration"] = expiryCalculator(
-            date1=result["course_date"],
-            date2=result["ampt_date"]
+            date1=dateDict["course_date"],
+            date2=dateDict["ampt_date"]
           )
+          result["expiry_date"]=result["expiry_date"].strftime("%Y-%b-%d")
         except:
           pass
 
@@ -326,7 +354,8 @@ def smti():
 
     except EmptyQuery:
       formsearch.submit_smti.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
-    except:
+    except Exception as e:
+      print(e)
       formsearch.submit_smti.errors.append("The query is formatted incorrectly")
   
   if formsearch.download_smti.data and formsearch.validate():
@@ -458,9 +487,11 @@ def smti():
       pass
 
     try:
-      ''' queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
-      session['result_p'] = []
-      error= ""
+      queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
+      profile_result = []
+      del_check=[]
+      session["profile_modify_check"] = None
+      session["profile_modify_header"] = None
 
       print(queries)
 
@@ -468,49 +499,86 @@ def smti():
         raise EmptyQuery()
 
       if not "uuid" in queries[0]:
-        error.append("UUID must be included/n")
-        raise QueryError() 
+        formsearchp.modify_profile.errors.append("Column 'uuid' must be included")
+        raise QueryError()
 
-      for query in queries:
+      profile_modify_header = queries[0]
 
-        query = dict(zip(queries[0], query))
+      for query in queries[1:]:
 
-        for column, value in query:
+        queryDict = dict(zip(queries[0], query))
+
+        for column, value in queryDict.items():
           if value == "":
-            del query[column]
+            del queryDict[column]
+        
+        NameQuery = FullName.query.filter(FullName.uuid==queryDict["uuid"]).first()
+        ICQuery = MaskedIC.query.filter(MaskedIC.uuid==queryDict["uuid"]).first()
+        print("masked_ic" in queryDict)
+        print("full_name" in queryDict)
 
         if(
-            FullName.query.filter(FullName.uuid==query["uuid"]) == None or
-            MaskedIC.query.filter(MaskedIC.uuid==query["uuid"]) == None
+            NameQuery == None or
+            ICQuery == None
           ) and not (
-            "masked_ic" in query and 
-            "full_name" in query
+            "masked_ic" in queryDict and 
+            "full_name" in queryDict
           ):
 
-          error.append(query["uuid"] + " does not exist. Create entry by defining 'masked_ic and 'full_name'/n")
+          formsearchp.modify_profile.errors.append(queryDict["uuid"] + " does not exist. Create entry by defining 'masked_ic and 'full_name'")
         
         else:
-          for column, value in query:
-            if column == "rights":
+          for column, value in list(queryDict.items()):
+            if column == "uuid":
+              pass
+            elif column == "masked_ic":
               if value == "#DEL":
-                 
-              else: '''
+                formsearchp.modify_profile.errors.append(queryDict["uuid"] + " " + column +" cannot be deleted directly")
+              elif re.search("^\d\d\d[A-Za-z]$", value):
+                queryDict[column] = value.upper()
+              else:
+                formsearchp.modify_profile.errors.append(queryDict["uuid"] + " " + column +" is not format of masked IC")
+            elif column == "full_name":
+              if value == "#DEL":
+                formsearchp.modify_profile.errors.append(queryDict["uuid"] + " " + column +" cannot be deleted directly")
+            elif column == "rights":
+              if value == "#DEL":
+                del_check.append(queryDict["uuid"])
+              elif value.title() == "Unit":
+                queryDict[column] = "Unit"
+              elif value.upper() == "SMTI":
+                queryDict[column] = "SMTI"
+              else:
+                formsearchp.modify_profile.errors.append(queryDict["uuid"] + " " + column +" only accepts 'SMTI' or 'Unit' as input")
+            else:
+              del queryDict[column]
+              if column in profile_modify_header:
+                profile_modify_header.remove(column)
+
+          profile_result.append(queryDict)
+
+      print(profile_result)
+      print(formsearchp.modify_profile.errors)
+      print("complete")
+      print(session["profile_modify_check"])
 
 
-      session["modal"] = "Test Modal"
-      print(session["modal"])
-
+      if len(formsearchp.modify_profile.errors)==0:
+        session["profile_modify_check"] = profile_result
+        session["profile_modify_header"] = profile_modify_header
+      else:
+        raise QueryError()
 
     except EmptyQuery:
-      formsearchp.submit_profile.errors.append("No modify query detected in input field. Click 'Upload' to populate input field with file.")
-
-      session["profile"]
+      formsearchp.modify_profile.errors.append("No modify query detected in input field. Click 'Upload' to populate input field with file.")
 
     except QueryError:
-      formsearchp.submit_profile.errors.append("Query Error")
+      print(formsearchp.modify_profile.errors)
+      print(session["profile_modify_check"])
 
-    except:
-      formsearchp.submit_profile.errors.append("The query is formatted incorrectly")
+    except Exception as e:
+      print(e)
+      formsearchp.modify_profile.errors.append("The query is formatted incorrectly")
          
   return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp)
 
@@ -522,6 +590,10 @@ def invalid():
 @app.route('/terms')
 def terms():
   return render_template('terms.html', nodate = True)
+
+@app.route('/singpass')
+def singpass():
+  return render_template('singpass.html', nodate = True)
 
 @app.errorhandler(404)
 def page_not_found(self):
