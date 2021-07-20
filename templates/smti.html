@@ -154,11 +154,7 @@
                     {{ formsearchp.download_profile(class="btn btn-primary disabled") }}
                   {% endif %}
                 </div>
-                {{ formsearchp.modify_profile(
-                  class="btn btn-warning float-end", 
-                  id='profile-modify'
-                  ) 
-                }}
+                {{ formsearchp.modify_profile(class="btn btn-warning float-end") }}
                 {% if formsearchp.entry_profile.errors %} 
                   {% for error in formsearchp.entry_profile.errors %}
                   <br><span class="badge bg-danger">{{ error }}</span></h1>
@@ -218,11 +214,10 @@
 {% if session["profile_modify_check"] %}
 <!-- Modal -->
 <div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="profileModalLabel">Modify User Profiles</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         Review changes carefully before confirming. Save a version of the finalised changes for future reference.
@@ -242,22 +237,37 @@
             <tbody>
               {% for row in session["profile_modify_check"] %}
               <tr>
-                {% for column in row%}
+                {% for column in session["profile_modify_header"] %}
                 <td>{{row[column]}}</td>
                 {% endfor %}
               </tr>
               {% endfor %}
             </tbody>
           </table>
-        <button type="button" class="btn btn-primary">Download Modification</button>
+        <form method="POST">
+          {{ formmodifyp.csrf_token }}
+          <div class="form-group">
+            {{ formmodifyp.download_modify_profile(class="btn btn-primary") }}
+            {{ formmodifyp.submit_modify_profile(class="btn btn-warning float-end") }}
+          </div>
+        </form>
         <br> 
         Table of changed values after changes are commited (run search of UUID)
         <br> 
-        <button type="button" class="btn btn-primary">Download Final Values</button>
+        <form method="POST">
+          {{ formmodifyp.csrf_token }}
+          <div class="form-group">
+            {{ formmodifyp.download_result_profile(class="btn btn-primary") }}
+          </div>
+        </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-warning">Confirm Modification</button>
+        <form method="POST">
+          {{ formmodifyp.csrf_token }}
+          <div class="form-group">
+            {{ formmodifyp.cancel_modify_profile(class="btn btn-secondary") }}
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -270,12 +280,11 @@
 
 {% if session["profile_modify_check"] %}
 <script>
-var profileModal = new bootstrap.Modal(document.getElementById('profileModal'), {
-  backdrop: 'static',
-  keyboard: false
-})
-
-profileModal.show()
+  var profileModal = new bootstrap.Modal(
+    document.getElementById('profileModal'), 
+    {backdrop: 'static', keyboard: false,}
+    )
+  profileModal.show()
 </script>
 {% endif %}
 

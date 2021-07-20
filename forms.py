@@ -36,3 +36,9 @@ class profileSearchForm(FlaskForm):
   submit_profile = SubmitField('Search')
   download_profile = SubmitField('Download')
   modify_profile = SubmitField('Modify')
+
+class profileModifyForm(FlaskForm):
+  submit_modify_profile = SubmitField('Confirm Modifications')
+  download_modify_profile = SubmitField('Download Modifications')
+  download_result_profile = SubmitField('Download Results')
+  cancel_modify_profile = SubmitField('Cancel')

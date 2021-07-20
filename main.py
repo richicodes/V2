@@ -97,7 +97,7 @@ def unit():
       for query in queries[1:]:
         query_uuids = []
 
-        dateDict = {}
+
 
 
         ICQuery = (
@@ -141,6 +141,8 @@ def unit():
       )
 
       for row in range(len(uuids)):
+
+        dateDict = {}
 
         result = {
           "masked_ic": "Invalid",
@@ -212,9 +214,14 @@ def smti():
     entry_profile='"Masked NRIC (123X)","FULL NAME"'
   )
 
-  for key in ['result', 'result_p','tab','profile_modify_check','profile_modify_header']:
+  formmodifyp = profileModifyForm()
+
+  for key in ['result', 'result_p','profile_modify_check','profile_modify_header']:
     if key not in session:
       session[key] = None
+
+  if 'tab' not in session:
+    session['tab'] = 'smti'
 
   if formxls.submitxls_smti.data and formxls.validate():
     session['tab'] = "smti"
@@ -470,7 +477,7 @@ def smti():
   if formsearchp.download_profile.data and formsearchp.validate():
     session['tab'] = "profile"
     return sendExcel(
-      dict_in=session['result'], 
+      dict_in=session['result_p'], 
       column_order=["masked_ic", "full_name", "rights"],
       filename_suffix="profiles"
       )
@@ -488,10 +495,6 @@ def smti():
 
     try:
       queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
-      profile_result = []
-      del_check=[]
-      session["profile_modify_check"] = None
-      session["profile_modify_header"] = None
 
       print(queries)
 
@@ -502,70 +505,120 @@ def smti():
         formsearchp.modify_profile.errors.append("Column 'uuid' must be included")
         raise QueryError()
 
-      profile_modify_header = queries[0]
+      profile_result = []
+      query_dicts = []
+      session["profile_modify_check"] = None
+      session["profile_modify_header"] = None
 
       for query in queries[1:]:
 
-        queryDict = dict(zip(queries[0], query))
+        query_dict = dict(zip(queries[0], query))
 
-        for column, value in queryDict.items():
-          if value == "":
-            del queryDict[column]
+        for column, value in list(query_dict.items()):
+          if column not in ['uuid', 'full_name', 'masked_ic', 'rights']:
+            del query_dict[column]
+          elif value == "":
+            del query_dict[column]
         
-        NameQuery = FullName.query.filter(FullName.uuid==queryDict["uuid"]).first()
-        ICQuery = MaskedIC.query.filter(MaskedIC.uuid==queryDict["uuid"]).first()
-        print("masked_ic" in queryDict)
-        print("full_name" in queryDict)
+        query_dicts.append(query_dict)
+
+      for column in queries[0]:
+        if column not in ['uuid', 'full_name', 'masked_ic', 'rights']:
+          queries[0].remove(column)
+
+      for query_dict in query_dicts:
+        
+        NameQuery = FullName.query.filter(FullName.uuid==query_dict["uuid"]).first()
+        ICQuery = MaskedIC.query.filter(MaskedIC.uuid==query_dict["uuid"]).first()
+        print("masked_ic" in query_dict)
+        print("full_name" in query_dict)
 
         if(
             NameQuery == None or
             ICQuery == None
           ) and not (
-            "masked_ic" in queryDict and 
-            "full_name" in queryDict
+            "masked_ic" in query_dict and 
+            "full_name" in query_dict
           ):
 
-          formsearchp.modify_profile.errors.append(queryDict["uuid"] + " does not exist. Create entry by defining 'masked_ic and 'full_name'")
+          formsearchp.modify_profile.errors.append(query_dict["uuid"] + " does not exist. Create entry by defining 'masked_ic and 'full_name'")
         
         else:
-          for column, value in list(queryDict.items()):
+          delete_check = False
+          for column, value in list(query_dict.items()):
             if column == "uuid":
               pass
             elif column == "masked_ic":
               if value == "#DEL":
-                formsearchp.modify_profile.errors.append(queryDict["uuid"] + " " + column +" cannot be deleted directly")
+                formsearchp.modify_profile.errors.append(query_dict["uuid"] + " " + column +" cannot be deleted directly")
               elif re.search("^\d\d\d[A-Za-z]$", value):
-                queryDict[column] = value.upper()
+                query_dict[column] = value.upper()
               else:
-                formsearchp.modify_profile.errors.append(queryDict["uuid"] + " " + column +" is not format of masked IC")
+                formsearchp.modify_profile.errors.append(query_dict["uuid"] + " " + column +" is not format of masked IC")
             elif column == "full_name":
               if value == "#DEL":
-                formsearchp.modify_profile.errors.append(queryDict["uuid"] + " " + column +" cannot be deleted directly")
+                formsearchp.modify_profile.errors.append(query_dict["uuid"] + " " + column +" cannot be deleted directly")
             elif column == "rights":
               if value == "#DEL":
-                del_check.append(queryDict["uuid"])
+                delete_check = True
               elif value.title() == "Unit":
-                queryDict[column] = "Unit"
+                query_dict[column] = "Unit"
               elif value.upper() == "SMTI":
-                queryDict[column] = "SMTI"
+                query_dict[column] = "SMTI"
               else:
-                formsearchp.modify_profile.errors.append(queryDict["uuid"] + " " + column +" only accepts 'SMTI' or 'Unit' as input")
+                formsearchp.modify_profile.errors.append(query_dict["uuid"] + " " + column +" only accepts 'SMTI' or 'Unit' as input")
             else:
-              del queryDict[column]
+              del query_dict[column]
               if column in profile_modify_header:
                 profile_modify_header.remove(column)
+            
+          if delete_check:
 
-          profile_result.append(queryDict)
+            InternetQuery = (
+              db.session.query(MaskedIC, AMPT, VocDate)
+              .outerjoin(AMPT)
+              .outerjoin(VocDate)
+              .filter(MaskedIC.uuid == query_dict["uuid"])
+              .one()
+            )
+
+            IntranetQuery = (
+              db.session.query(FullName, VocName, AED)
+              .outerjoin(VocName)
+              .outerjoin(AED)
+              .filter(FullName.uuid == query_dict["uuid"])
+              .one()
+            )
+
+            if (
+              InternetQuery.AMPT == None and
+              InternetQuery.VocDate == None and
+              IntranetQuery.VocName == None and
+              IntranetQuery.AED == None
+            ):
+              for column in ['full_name', 'masked_ic']:
+                if column not in queries[0]:
+                  queries[0].append(column)
+                  print(queries[0])
+              for column in queries[0]:
+                if column == 'uuid':
+                  query_dict[column] = '#DEL ' + query_dict[column]
+                else:
+                  query_dict[column] = '#DEL'
+            else:
+              print("DONTDELETE")
+
+          profile_result.append(query_dict)
 
       print(profile_result)
       print(formsearchp.modify_profile.errors)
       print("complete")
-      print(session["profile_modify_check"])
+      print(queries[0])
 
 
       if len(formsearchp.modify_profile.errors)==0:
         session["profile_modify_check"] = profile_result
-        session["profile_modify_header"] = profile_modify_header
+        session["profile_modify_header"] = queries[0]
       else:
         raise QueryError()
 
@@ -579,8 +632,23 @@ def smti():
     except Exception as e:
       print(e)
       formsearchp.modify_profile.errors.append("The query is formatted incorrectly")
-         
-  return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp)
+
+  if formmodifyp.download_modify_profile.data and formmodifyp.validate():
+    session['tab'] = "profile"
+    return sendExcel(
+      dict_in=session["profile_modify_check"], 
+      column_order=session["profile_modify_header"],
+      filename_suffix="modify_profiles"
+      )
+
+  if formmodifyp.submit_modify_profile.data and formmodifyp.validate():
+    print("SUBMIT")
+
+  if formmodifyp.cancel_modify_profile.data and formmodifyp.validate():
+    session["profile_modify_check"] = None
+    session["profile_modify_header"] = None
+
+  return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp, formmodifyp=formmodifyp)
 
 
 @app.route('/invalid')
