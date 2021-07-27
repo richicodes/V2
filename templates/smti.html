@@ -251,21 +251,57 @@
             {{ formmodifyp.submit_modify_profile(class="btn btn-warning float-end") }}
           </div>
         </form>
+        {% if session["result_modify_p"] %}
         <br> 
         Table of changed values after changes are commited (run search of UUID)
         <br> 
+        <table 
+          data-toggle="table" 
+          data-search="true" 
+          data-show-columns="true"
+          data-pagination="true">
+          <thead>
+            <tr>
+              <th data-sortable="true">UUID</th>
+              <th data-sortable="true">Masked NRIC</th>
+              <th data-sortable="true">Full Name</th>
+              <th data-sortable="true">Access Rights</th>
+            </tr>
+            <tr>
+              <th data-sortable="true"><code>uuid</code></th>
+              <th data-sortable="true"><code>masked_ic</code></th>
+              <th data-sortable="true"><code>full_name </code></th>
+              <th data-sortable="true"><code>rights</code></th>
+            </tr>
+          </thead>
+          <tbody>            
+            {% for row in session["result_modify_p"] %}
+            <tr>
+              <td>{{row.uuid}}</td>
+              <td>{{row.masked_ic}}</td>
+              <td>{{row.full_name}}</td>
+              <td>{{row.rights}}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         <form method="POST">
           {{ formmodifyp.csrf_token }}
           <div class="form-group">
             {{ formmodifyp.download_result_profile(class="btn btn-primary") }}
           </div>
         </form>
+        {% endif %}
       </div>
       <div class="modal-footer">
         <form method="POST">
           {{ formmodifyp.csrf_token }}
           <div class="form-group">
-            {{ formmodifyp.cancel_modify_profile(class="btn btn-secondary") }}
+            {% if session["result_modify_p"] %}
+              {{ formmodifyp.exit_modify_profile(class="btn btn-secondary") }}
+            {% else %}
+              {{ formmodifyp.cancel_modify_profile(class="btn btn-secondary") }}
+            {% endif %}
           </div>
         </form>
       </div>

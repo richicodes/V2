@@ -42,3 +42,4 @@ class profileModifyForm(FlaskForm):
   download_modify_profile = SubmitField('Download Modifications')
   download_result_profile = SubmitField('Download Results')
   cancel_modify_profile = SubmitField('Cancel')
+  exit_modify_profile = SubmitField('Exit')

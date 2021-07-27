@@ -85,7 +85,9 @@ def unit():
 
     try:
       queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
-      session['result'] = []
+      results = []
+      session["result"] = []
+      uuids_results = []
 
       print(queries)
 
@@ -117,8 +119,9 @@ def unit():
 
         if len(query_uuids) > 0:
           uuids += query_uuids
+          uuids_results += query_uuids
         else:
-          session['result'].append({
+          uuids_results.append({
             "masked_ic": query[0],
             "full_name": query[1],
             "validity": "Invalid",
@@ -168,7 +171,8 @@ def unit():
 
         try:
           table_dict = IntranetQuery[row].__dict__
-          result["full_name"]=table_dict["full_name"]          
+          result["full_name"]=table_dict["full_name"]
+          result["uuid"]=table_dict["uuid"]        
         except:
           pass
 
@@ -183,14 +187,26 @@ def unit():
         except:
           pass
 
-        session["result"].append(result)
+        results.append(result)
+      
+      for uuid in uuids_results:
+        print(uuid)
+        print(type(uuid))
+        if isinstance(uuid, dict):
+          session["result"].append(uuid)
+        else:
+          for result in results:
+            if result['uuid']==uuid:
+              session["result"].append(result)
       
       print(session["result"])
 
     except EmptyQuery:
       formsearch.submitunit.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
       print("error")
-    except:
+    except Exception as e:
+      print("ERROR")
+      print(e)      
       formsearch.submitunit.errors.append("The query is formatted incorrectly")
   
   if formsearch.downloadunit.data and formsearch.validate():
@@ -216,7 +232,7 @@ def smti():
 
   formmodifyp = profileModifyForm()
 
-  for key in ['result', 'result_p','profile_modify_check','profile_modify_header']:
+  for key in ['result', 'result_p','profile_modify_check','profile_modify_header', 'result_modify_p']:
     if key not in session:
       session[key] = None
 
@@ -242,6 +258,8 @@ def smti():
     try:
       queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
       session['result'] = []
+      uuids_results = []
+      results = []
 
       print(queries)
 
@@ -270,8 +288,9 @@ def smti():
 
         if len(query_uuids) > 0:
           uuids += query_uuids
+          uuids_results += query_uuids
         else:
-          session['result'].append({
+          uuids_results.append({
           "masked_ic": query[0],
           "full_name": query[1],
           "validity":   "Invalid",
@@ -290,6 +309,7 @@ def smti():
         .outerjoin(AMPT)
         .outerjoin(VocDate)
         .filter(MaskedIC.uuid.in_(uuids))
+        .order_by(MaskedIC.uuid)
         .all()
       )
 
@@ -298,10 +318,11 @@ def smti():
         .outerjoin(VocName)
         .outerjoin(AED)
         .filter(FullName.uuid.in_(uuids))
+        .order_by(FullName.uuid)
         .all()
       )
 
-      for row in range(len(uuids)):
+      for row in range(len(InternetQuery)):
 
         dateDict = {}
 
@@ -321,28 +342,35 @@ def smti():
 
         try:
           for table in InternetQuery[row]:
-            table_dict = table.__dict__
-            del table_dict['uuid']
-            del table_dict['_sa_instance_state']
-            for column, value in table_dict.items():
-              if column in ["course_date", "ampt_date"]:
-                dateDict[column] = value
-                result[column] = value.strftime("%Y-%b-%d")
-              else:
-                result[column]=value
+            try:
+              table_dict = table.__dict__
+              print(table_dict['uuid'])
+              del table_dict['_sa_instance_state']
+              for column, value in table_dict.items():
+                if column in ["course_date", "ampt_date"]:
+                  dateDict[column] = value
+                  result[column] = value.strftime("%Y-%b-%d")
+                else:
+                  result[column]=value
+            except:
+              pass
         except:
           pass
 
         try:
           for table in IntranetQuery[row]:
-            table_dict = table.__dict__
-            del table_dict['uuid']
-            del table_dict['_sa_instance_state']
-            for column, value in table_dict.items():
-              if column in ["aed_date"]:
-                result[column] = value.strftime("%Y-%b-%d")
-              else:
-                result[column]=value
+            try:
+              table_dict = table.__dict__
+              print(table_dict['uuid'])
+              del table_dict['uuid']
+              del table_dict['_sa_instance_state']
+              for column, value in table_dict.items():
+                if column in ["aed_date"]:
+                  result[column] = value.strftime("%Y-%b-%d")
+                else:
+                  result[column]=value
+            except:
+              pass
         except:
           pass
 
@@ -357,7 +385,18 @@ def smti():
         except:
           pass
 
-        session["result"].append(result)
+        results.append(result)
+
+      for uuid in uuids_results:
+        print(uuid)
+        print(type(uuid))
+        if isinstance(uuid, dict):
+          session["result"].append(uuid)
+        else:
+          for result in results:
+            if result['uuid']==uuid:
+              session["result"].append(result)
+
 
     except EmptyQuery:
       formsearch.submit_smti.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
@@ -390,7 +429,9 @@ def smti():
 
     try:
       queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
-      session['result_p'] = []
+      results = []
+      session["result_p"] = []
+      uuids_results = []
 
       print(queries)
 
@@ -419,8 +460,9 @@ def smti():
 
         if len(query_uuids) > 0:
           uuids += query_uuids
+          uuids_results += query_uuids
         else:
-          session['result_p'].append({
+          uuids_results.append({
             "masked_ic": query[0],
             "full_name": query[1],
             "rights": "Invalid" 
@@ -429,6 +471,7 @@ def smti():
       InternetQuery = (
         db.session.query(MaskedIC)
         .filter(MaskedIC.uuid.in_(uuids))
+        .order_by(MaskedIC.uuid)
         .all()
       )
 
@@ -436,42 +479,53 @@ def smti():
         db.session.query(FullName, Profile)
         .outerjoin(Profile)
         .filter(FullName.uuid.in_(uuids))
+        .order_by(FullName.uuid)
         .all()
       )
 
-      for row in range(len(uuids)):
-
+      for row in range(len(InternetQuery)):
         result = {
-          "masked_ic": query[0],
-          "full_name": query[1],
-          "rights": "Invalid" 
+            "rights": "Invalid" 
         }
-
         try:
-          for table in InternetQuery[row]:
-            table_dict = table.__dict__
-            del table_dict['uuid']
-            del table_dict['_sa_instance_state']
-            for column, value in table_dict.items():
-              result[column]=value
+          table_dict = InternetQuery[row].__dict__
+          del table_dict['_sa_instance_state']
+          for column, value in table_dict.items():
+            result[column]=value
         except:
           pass
 
         try:
           for table in IntranetQuery[row]:
-            table_dict = table.__dict__
-            del table_dict['uuid']
-            del table_dict['_sa_instance_state']
-            for column, value in table_dict.items():
-              result[column]=value
+            try:
+              table_dict = table.__dict__
+              del table_dict['uuid']
+              del table_dict['_sa_instance_state']
+              for column, value in table_dict.items():
+                result[column]=value
+            except:
+              pass
         except:
           pass
 
-        session["result_p"].append(result)
+        results.append(result)
+      
+      for uuid in uuids_results:
+        print(uuid)
+        print(type(uuid))
+        if isinstance(uuid, dict):
+          session["result_p"].append(uuid)
+        else:
+          for result in results:
+            if result['uuid']==uuid:
+              session["result_p"].append(result)
+
 
     except EmptyQuery:
       formsearchp.submit_profile.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
-    except:
+    except Exception as e:
+      print("ERROR")
+      print(e)
       formsearchp.submit_profile.errors.append("The query is formatted incorrectly")
   
   if formsearchp.download_profile.data and formsearchp.validate():
@@ -530,8 +584,6 @@ def smti():
         
         NameQuery = FullName.query.filter(FullName.uuid==query_dict["uuid"]).first()
         ICQuery = MaskedIC.query.filter(MaskedIC.uuid==query_dict["uuid"]).first()
-        print("masked_ic" in query_dict)
-        print("full_name" in query_dict)
 
         if(
             NameQuery == None or
@@ -642,11 +694,176 @@ def smti():
       )
 
   if formmodifyp.submit_modify_profile.data and formmodifyp.validate():
-    print("SUBMIT")
+
+    uuids = []
+    results = []
+    session["result_modify_p"] = []
+
+    for row in session["profile_modify_check"]:
+
+      uuids.append(row['uuid'][-36:])
+
+      if row['uuid'][0:4] == '#DEL':
+
+        print(row['uuid'] + " is being deleted")
+
+        entry = (
+          db.session.query(Profile)
+          .filter(Profile.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL rights')
+        entry = (
+          db.session.query(FullName)
+          .filter(FullName.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL full_name')
+        entry = (
+          db.session.query(MaskedIC)
+          .filter(MaskedIC.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL masked_ic')
+      
+      else:
+        for column in session["profile_modify_header"]:
+          
+          cell = None
+          try:
+            cell = row[column]
+          except:
+            pass
+
+          print(cell)
+          print(column)
+
+          if cell == None or column == 'uuid':
+            print("pass")
+          elif cell == '#DEL':
+            ''' if column == 'fullname':
+              entry = (
+                db.session.query(FullName)
+                .filter(FullName.uuid == row['uuid'])
+              )
+              entry.delete()
+              print('#DEL full_name')
+            elif column == 'masked_ic':
+              entry = (
+                db.session.query(MaskedIC)
+                .filter(MaskedIC.uuid == row['uuid'])
+              )
+              entry.delete()
+              print('#DEL masked_ic') '''
+            if column == 'rights':
+              entry = (
+                db.session.query(Profile)
+                .filter(Profile.uuid == row['uuid'])
+              )
+              entry.delete()
+              print('#DEL rights')
+          else:
+            if column == 'full_name':
+              entry = FullName(uuid=row['uuid'], full_name=cell)
+              db.session.merge(entry)
+              print("full_name changed")
+            elif column == 'masked_ic':
+              entry = MaskedIC(uuid=row['uuid'], masked_ic=cell)
+              db.session.merge(entry)
+              print("masked_ic changed")
+            elif column == 'rights':
+              entry = Profile(uuid=row['uuid'], rights=cell)
+              db.session.merge(entry)
+              print('rights changed')
+
+    db.session.commit()
+
+    InternetQueryResult = (
+      db.session.query(MaskedIC)
+      .filter(MaskedIC.uuid.in_(uuids))
+      .order_by(MaskedIC.uuid)
+      .all()
+    )
+
+    IntranetQueryResult = (
+      db.session.query(FullName, Profile)
+      .outerjoin(Profile)
+      .filter(FullName.uuid.in_(uuids))
+      .order_by(FullName.uuid)
+      .all()
+    )
+
+    print(uuids)
+
+    for row in range(len(uuids)):
+
+      result = {
+        "masked_ic": "Invalid",
+        "full_name": "Invalid",
+        "rights": "Invalid" 
+      }
+
+      try:
+        table_dict = InternetQueryResult[row].__dict__
+        print(table_dict['uuid'])
+        #del uuids.remove([table_dict['uuid']])
+        del table_dict['_sa_instance_state']
+        for column, value in table_dict.items():
+          result[column]=value
+      except:
+        pass
+
+      try:
+        for table in IntranetQueryResult[row]:
+          try:
+            table_dict = table.__dict__
+            print(table_dict['uuid'])
+            del table_dict['uuid']
+            del table_dict['_sa_instance_state']
+            for column, value in table_dict.items():
+              result[column]=value
+          except:
+            pass
+      except:
+        pass
+
+      results.append(result)
+
+    for uuid in uuids:
+      empty = True
+      for result in results:
+        try:
+          if result['uuid']==uuid:
+            session["result_modify_p"].append(result)
+            empty = False
+        except:
+          pass
+      
+      if empty:
+        session["result_modify_p"].append({
+        "uuid": uuid,
+        "masked_ic": "Invalid",
+        "full_name": "Invalid",
+        "rights": "Invalid" 
+      })
+
+  if formmodifyp.download_result_profile.data and formmodifyp.validate():
+    session['tab'] = "profile"
+    return sendExcel(
+      dict_in=session["result_modify_p"], 
+      column_order=['uuid', 'masked_ic', 'full_name', 'rights'],
+      filename_suffix="modify_profiles_result"
+      )
 
   if formmodifyp.cancel_modify_profile.data and formmodifyp.validate():
     session["profile_modify_check"] = None
     session["profile_modify_header"] = None
+    session["result_modify_p"] = None
+
+  if formmodifyp.exit_modify_profile.data and formmodifyp.validate():
+    session["profile_modify_check"] = None
+    session["profile_modify_header"] = None
+    session["result_modify_p"] = None
 
   return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp, formmodifyp=formmodifyp)
 
