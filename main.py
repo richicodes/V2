@@ -224,15 +224,15 @@ def smti():
   formsearch = smtiSearchForm(
     entry_smti='"Masked NRIC (123X)","FULL NAME"'
   )
+  formmodify = smtiModifyForm()
 
   formxlsp = profileXlsxForm()
   formsearchp = profileSearchForm(
     entry_profile='"Masked NRIC (123X)","FULL NAME"'
   )
-
   formmodifyp = profileModifyForm()
 
-  for key in ['result', 'result_p','profile_modify_check','profile_modify_header', 'result_modify_p']:
+  for key in ['result', 'smti_modify_check','profile_modify_header', 'result_modify_p','result_p','profile_modify_check','profile_modify_header', 'result_modify_p']:
     if key not in session:
       session[key] = None
 
@@ -397,7 +397,6 @@ def smti():
             if result['uuid']==uuid:
               session["result"].append(result)
 
-
     except EmptyQuery:
       formsearch.submit_smti.errors.append("No search query detected in input field. Click 'Upload' to populate input field with file.")
     except Exception as e:
@@ -408,9 +407,533 @@ def smti():
     session['tab'] = "smti"
     return sendExcel(
       dict_in=session['result'], 
-      column_order=["masked_ic", "full_name", "validity", "expiry_date", "duration", "course_name", "course_date", "ampt_date", "aed_cert"], 
+      column_order=["masked_ic", "full_name", "validity", "expiry_date", "duration", "course_name", "course_date", "ampt_date", "aed_name", "aed_date", "aed_cert"], 
       filename_suffix="eMedic"
       )
+
+  if formsearch.modify_smti.data and formsearch.validate():
+    session['tab'] = "smti"
+    q = formsearch.entry_smti.data.splitlines()
+    class EmptyQuery(Exception):
+      """Exception raised when query is empty"""
+      pass
+
+    class QueryError(Exception):
+      """Exception raised when there is an query error"""
+      pass
+
+    try:
+      queries = list(csv.reader(q, quotechar='"', quoting=csv.QUOTE_ALL))
+
+      print(queries)
+
+      if len(queries) == 1:
+        raise EmptyQuery()
+
+      if not "uuid" in queries[0]:
+        formsearch.modify_smti.errors.append("Column 'uuid' must be included")
+        raise QueryError()
+
+      smti_result = []
+      query_dicts = []
+      session["smti_modify_check"] = None
+      session["smti_modify_header"] = None
+
+      for query in queries[1:]:
+
+        query_dict = dict(zip(queries[0], query))
+
+        for column, value in list(query_dict.items()):
+          if column not in ["uuid", "masked_ic", "full_name", "course_name", "course_date", "ampt_date", "aed_name", "aed_date", "aed_cert"]:
+            del query_dict[column]
+          elif value == "":
+            del query_dict[column]
+        
+        query_dicts.append(query_dict)
+
+      for column in queries[0]:
+        if column not in ["uuid", "masked_ic", "full_name", "course_name", "course_date", "ampt_date", "aed_name", "aed_date", "aed_cert"]:
+          queries[0].remove(column)
+
+      for query_dict in query_dicts:
+        
+        NameQuery = FullName.query.filter(FullName.uuid==query_dict["uuid"]).first()
+        ICQuery = MaskedIC.query.filter(MaskedIC.uuid==query_dict["uuid"]).first()
+
+        if(
+            NameQuery == None or
+            ICQuery == None
+          ) and not (
+            "masked_ic" in query_dict and 
+            "full_name" in query_dict
+          ):
+
+          formsearch.modify_smti.errors.append(query_dict["uuid"] + " does not exist. Create entry by defining 'masked_ic and 'full_name'")
+        
+        else:
+          delete_check = []
+          course_field = 0
+          course_del = 0
+          aed_field = 0
+          aed_del = 0
+
+          for column, value in list(query_dict.items()):
+            if column == "uuid":
+              pass
+            elif column == "masked_ic":
+              if value == "#DEL":
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" cannot be deleted directly")
+              elif re.search("^\d\d\d[A-Za-z]$", value):
+                query_dict[column] = value.upper()
+              else:
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" is not format of masked IC")
+            elif column == "full_name":
+              if value == "#DEL":
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" cannot be deleted directly")
+            elif column == "course_name":
+              if value == "#DEL":
+                course_dict[column] = value.upper()
+                course_field += 1
+                course_del += 1
+              elif value.upper() in ['EMT', 'EMTS', 'MVT', 'BCS']:
+                query_dict[column] = value.upper()
+                course_field += 1
+              else:
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts 'EMT', 'EMTS', 'MVT' or 'BCS' as input")
+            elif column == "course_date":
+              if value == "#DEL":
+                query_dict[column] = value
+                course_field += 1
+                course_del += 1
+              else:
+                try:
+                  course_field += 1
+                  datetime.strptime(value, "%Y-%b-%d")
+                except Exception as e:
+                  print(e)
+                  formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts '#DEL' or date in YYYY-MMM-DD  as input")
+            elif column == "ampt_date":
+              if value == "#DEL":
+                query_dict[column] = value
+              else:
+                try:
+                  delete_check.append(column)
+                  datetime.strptime(value, "%Y-%b-%d")
+                  print(type(query_dict[column]))
+                except Exception as e:
+                  print(e)
+                  formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts '#DEL' or date in YYYY-MMM-DD  as input")
+            elif column == "aed_name":
+              if value == "#DEL":
+                query_dict[column] = value
+                aed_field += 1
+                aed_del += 1
+              elif value.upper() in ['CPR+AED', 'BCLS+AED']:
+                query_dict[column] = value.upper()
+                aed_field += 1
+              else:
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts 'CPR+AED' or 'BCLS+AED' as input")
+            elif column == "aed_date":
+              if value == "#DEL":
+                query_dict[column] = value
+                aed_field += 1
+                aed_del += 1
+              else:
+                try:
+                  aed_field += 1
+                  datetime.strptime(value, "%Y-%b-%d")
+                except Exception as e:
+                  print(e)
+                  formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts '#DEL' or date in YYYY-MMM-DD as input")
+            elif column == "aed_cert":
+              if value == "#DEL":
+                query_dict[column] = value
+                aed_field += 1
+                aed_del += 1
+              else:
+                query_dict[column] = value
+                aed_field += 1
+            else:
+              del query_dict[column]
+              if column in session['smti_modify_header']:
+                session['smti_modify_header'].remove(column)
+
+            if course_field > 0:
+              if course_del == 1:
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " must have '#DEL' in 'course_name' and 'course_date'")
+              if course_del == 2:
+                delete_check.append('course')
+              elif course_field == 1:
+                InternetQuery = (
+                  db.session.query(VocDate)
+                  .filter(VocDate.uuid == query_dict["uuid"])
+                  .one()
+                )
+                IntranetQuery = (
+                  db.session.query(VocName)
+                  .filter(VocName.uuid == query_dict["uuid"])
+                  .one()
+                )
+                if InternetQuery == None and IntranetQuery == None:
+                  formsearch.modify_smti.errors.append(query_dict["uuid"] + " 'course_name' and 'course_date' must be defined together to create a new entry")
+
+            if aed_field > 0:
+              if 0 < aed_del < 3:
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " must have '#DEL' in 'aed_name', 'aed_date' and 'aed_cert'")
+              if aed_del == 3:
+                delete_check.append('aed')
+              elif aed_field < 3:
+                IntranetQuery = (
+                  db.session.query(VocName)
+                  .filter(AED.uuid == query_dict["uuid"])
+                  .one()
+                )
+                if IntranetQuery == None:
+                  formsearch.modify_smti.errors.append(query_dict["uuid"] + " 'course_name' and 'course_date' must be defined together to create a new entry")
+
+          if len(delete_check) > 0:
+
+            InternetQuery = (
+              db.session.query(MaskedIC, AMPT, VocDate)
+              .outerjoin(AMPT)
+              .outerjoin(VocDate)
+              .filter(MaskedIC.uuid == query_dict["uuid"])
+              .one()
+            )
+
+            IntranetQuery = (
+              db.session.query(FullName, VocName, AED, Profile)
+              .outerjoin(VocName)
+              .outerjoin(AED)
+              .outerjoin(Profile)
+              .filter(FullName.uuid == query_dict["uuid"])
+              .one()
+            )
+
+            if (
+              (InternetQuery.AMPT == None or 'ampt_date' in delete_check) and
+              ((InternetQuery.VocDate == None and IntranetQuery.VocName == None) or 'course' in delete_check) and
+              (IntranetQuery.AED == None or 'aed' in delete_check) and
+              IntranetQuery.Profile == None
+            ):
+              for column in ['full_name', 'masked_ic']:
+                if column not in queries[0]:
+                  queries[0].append(column)
+                  print(queries[0])
+              for column in queries[0]:
+                if column == 'uuid':
+                  query_dict[column] = '#DEL ' + query_dict[column]
+                else:
+                  query_dict[column] = '#DEL'
+            else:
+              print("DONTDELETE")
+
+          smti_result.append(query_dict)
+
+      print(smti_result)
+      print(formsearch.modify_smti.errors)
+      print("complete")
+      print(queries[0])
+
+      if len(formsearch.modify_smti.errors)==0:
+        session["smti_modify_check"] = smti_result
+        session["smti_modify_header"] = queries[0]
+        print('updated')
+      else:
+        raise QueryError()
+
+    except EmptyQuery:
+      formsearch.modify_smti.errors.append("No modify query detected in input field. Click 'Upload' to populate input field with file.")
+
+    except QueryError:
+      print(formsearch.modify_smti.errors)
+      print(session["profile_modify_check"])
+
+    except Exception as e:
+      print(e)
+      formsearch.modify_smti.errors.append("The query is formatted incorrectly")
+
+  if formmodify.download_modify_smti.data and formmodify.validate():
+    session['tab'] = "smtiSearchForm"
+    return sendExcel(
+      dict_in=session["smti_modify_check"], 
+      column_order=session["smti_modify_header"],
+      filename_suffix="modify_smti"
+      )
+
+
+
+
+  if formmodify.submit_modify_smti.data and formmodify.validate():
+
+    uuids = []
+    results = []
+    session["result_modify"] = []
+    print(session["smti_modify_check"])
+
+    for row in session["smti_modify_check"]:
+
+      uuids.append(row['uuid'][-36:])
+
+      if row['uuid'][0:4] == '#DEL':
+
+        print(row['uuid'] + " is being deleted")
+
+        entry = (
+          db.session.query(AMPT)
+          .filter(AMPT.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL AMPT')
+        entry = (
+          db.session.query(VocDate)
+          .filter(VocDate.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL VocDate')
+        entry = (
+          db.session.query(VocName)
+          .filter(VocName.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL VocName')
+        entry = (
+          db.session.query(AED)
+          .filter(AED.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL AED')
+
+        entry = (
+          db.session.query(FullName)
+          .filter(FullName.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL full_name')
+        entry = (
+          db.session.query(MaskedIC)
+          .filter(MaskedIC.uuid == row['uuid'][-36:])
+        )
+        entry.delete()
+        print('#DEL masked_ic')
+      
+      else:
+        for column in session["smti_modify_header"]:
+          
+          cell = None
+          try:
+            cell = row[column]
+          except:
+            pass
+
+          print(cell)
+          print(column)
+
+          if cell == None or column == 'uuid':
+            print("pass")
+          elif cell == '#DEL':
+            if column == 'ampt_date':
+              entry = (
+                db.session.query(AMPT)
+                .filter(AMPT.uuid == row['uuid'][-36:])
+              )
+              entry.delete()
+              print('#DEL AMPT')
+            elif column == 'course_date':
+              entry = (
+                db.session.query(VocDate)
+                .filter(VocDate.uuid == row['uuid'][-36:])
+              )
+              entry.delete()
+              print('#DEL VocDate')
+            elif column == 'course_name':
+              entry = (
+                db.session.query(VocName)
+                .filter(VocName.uuid == row['uuid'][-36:])
+              )
+              entry.delete()
+              print('#DEL VocName')
+            elif column == 'aed_cert':
+              entry = (
+                db.session.query(AED)
+                .filter(AED.uuid == row['uuid'][-36:])
+              )
+              entry.delete()
+              print('#DEL AED')
+          else:
+            if column == 'full_name':
+              entry = FullName(uuid=row['uuid'], full_name=cell)
+              db.session.merge(entry)
+              print("full_name changed")
+            elif column == 'masked_ic':
+              entry = MaskedIC(uuid=row['uuid'], masked_ic=cell)
+              db.session.merge(entry)
+              print("masked_ic changed")
+            elif column == 'ampt_date':
+              cell_date =  datetime.strptime(cell, "%Y-%b-%d").date()
+              print(type(cell_date))
+              entry = AMPT(uuid=row['uuid'], ampt_date=cell_date)
+              db.session.merge(entry)
+              print('ampt_date changed')
+            elif column == 'course_date':
+              cell_date =  datetime.strptime(cell, "%Y-%b-%d").date()
+              entry = VocDate(uuid=row['uuid'], course_date=cell_date)
+              db.session.merge(entry)
+              print('course_date changed')
+            elif column == 'course_name':
+              entry = VocName(uuid=row['uuid'], course_name=cell)
+              db.session.merge(entry)
+              print('course_name changed')
+            elif column == 'aed_name':
+              entry = AED(uuid=row['uuid'], aed_name=cell)
+              db.session.merge(entry)
+              print('aed_name changed')
+            elif column == 'aed_date':
+              cell_date =  datetime.strptime(cell, "%Y-%b-%d").date()
+              entry = AED(uuid=row['uuid'], aed_date=cell_date)
+              db.session.merge(entry)
+              print('aed_date changed')
+            elif column == 'aed_cert':
+              entry = AED(uuid=row['uuid'], aed_cert=cell)
+              db.session.merge(entry)
+              print('aed_cert changed')
+
+    db.session.commit()
+
+    InternetQueryResult = (
+      db.session.query(MaskedIC, AMPT, VocDate)
+      .outerjoin(AMPT)
+      .outerjoin(VocDate)
+      .filter(MaskedIC.uuid.in_(uuids))
+      .order_by(MaskedIC.uuid)
+      .all()
+    )
+
+    IntranetQueryResult = (
+      db.session.query(FullName, VocName, AED)
+      .outerjoin(VocName)
+      .outerjoin(AED)
+      .filter(FullName.uuid.in_(uuids))
+      .order_by(FullName.uuid)
+      .all()
+    )
+
+    print(uuids)
+
+    for row in range(len(uuids)):
+
+      dateDict = {}
+
+      result = {
+        "masked_ic": "Invalid",
+        "full_name": "Invalid",
+        "validity":   "Invalid",
+        "expiry_date": "Invalid",
+        "duration": "Invalid",
+        "course_name": "Invalid",
+        "course_date": "Invalid",
+        "ampt_date": "Invalid",
+        "aed_name": "Invalid",
+        "aed_date": "Invalid",
+        "aed_cert": "Invalid"
+      }
+
+      try:
+        for table in InternetQueryResult[row]:
+          try:
+            table_dict = table.__dict__
+            print(table_dict['uuid'])
+            del table_dict['_sa_instance_state']
+            for column, value in table_dict.items():
+              if column in ["course_date", "ampt_date"]:
+                dateDict[column] = value
+                result[column] = value.strftime("%Y-%b-%d")
+              else:
+                result[column]=value
+          except:
+            pass
+      except:
+        pass
+
+      try:
+        for table in IntranetQueryResult[row]:
+          try:
+            table_dict = table.__dict__
+            print(table_dict['uuid'])
+            del table_dict['uuid']
+            del table_dict['_sa_instance_state']
+            for column, value in table_dict.items():
+              if column in ["aed_date"]:
+                result[column] = value.strftime("%Y-%b-%d")
+              else:
+                result[column]=value
+          except:
+            pass
+      except:
+        pass
+
+      print(dateDict)
+
+      try:
+        result["validity"], result["expiry_date"], result["duration"] = expiryCalculator(
+          date1=dateDict["course_date"],
+          date2=dateDict["ampt_date"]
+        )
+        result["expiry_date"]=result["expiry_date"].strftime("%Y-%b-%d")
+      except:
+        pass
+
+      results.append(result)
+
+    print(results)
+
+    for uuid in uuids:
+      empty = True
+      for result in results:
+        try:
+          if result['uuid']==uuid:
+            session["result_modify"].append(result)
+            empty = False
+        except:
+          pass
+      
+      if empty:
+        session["result_modify"].append({
+        "uuid": uuid,
+        "masked_ic": "Invalid",
+        "full_name": "Invalid",
+        "validity":   "Invalid",
+        "expiry_date": "Invalid",
+        "duration": "Invalid",
+        "course_name": "Invalid",
+        "course_date": "Invalid",
+        "ampt_date": "Invalid",
+        "aed_name": "Invalid",
+        "aed_date": "Invalid",
+        "aed_cert": "Invalid"
+      })
+    
+    print(session["result_modify"])
+
+  if formmodify.download_result_smti.data and formmodify.validate():
+    session['tab'] = "smti"
+    return sendExcel(
+      dict_in=session["result_modify"], 
+      column_order=['uuid', 'masked_ic', 'full_name', "validity", "expiry_date", "duration", "course_name", "course_date", "ampt_date", "aed_name", "aed_date", "aed_cert"],
+      filename_suffix="modify_smti_result"
+      )
+
+  if formmodify.cancel_modify_smti.data and formmodify.validate():
+    session['tab'] = "smti"
+    session["smti_modify_check"] = None
+    session["smti_modify_header"] = None
+    session["result_modify"] = None
+
+  if formmodify.exit_modify_smti.data and formmodify.validate():
+    session['tab'] = "smti"
+    session["smti_modify_check"] = None
+    session["smti_modify_header"] = None
+    session["result_modify"] = None
 
   if formxlsp.submitxls_profile.data and formxlsp.validate():
     session['tab'] = "profile"
@@ -621,8 +1144,8 @@ def smti():
                 formsearchp.modify_profile.errors.append(query_dict["uuid"] + " " + column +" only accepts 'SMTI' or 'Unit' as input")
             else:
               del query_dict[column]
-              if column in profile_modify_header:
-                profile_modify_header.remove(column)
+              if column in session['profile_modify_header']:
+                session['profile_modify_header'].remove(column)
             
           if delete_check:
 
@@ -865,7 +1388,7 @@ def smti():
     session["profile_modify_header"] = None
     session["result_modify_p"] = None
 
-  return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formxlsp = formxlsp, formsearchp=formsearchp, formmodifyp=formmodifyp)
+  return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formmodify=formmodify, formxlsp = formxlsp, formsearchp=formsearchp, formmodifyp=formmodifyp)
 
 
 @app.route('/invalid')

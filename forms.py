@@ -26,6 +26,14 @@ class smtiSearchForm(FlaskForm):
   entry_smti = TextAreaField(validators=[InputRequired(message="No input to process")])
   submit_smti = SubmitField('Search')
   download_smti = SubmitField('Download')
+  modify_smti = SubmitField('Modify')
+
+class smtiModifyForm(FlaskForm):
+  submit_modify_smti = SubmitField('Confirm Modifications')
+  download_modify_smti = SubmitField('Download Modifications')
+  download_result_smti = SubmitField('Download Results')
+  cancel_modify_smti = SubmitField('Cancel')
+  exit_modify_smti = SubmitField('Exit')
 
 class profileXlsxForm(FlaskForm):
   file_profile = FileField(validators=[FileRequired(), FileAllowed(["xlsx"], "Only .xlsx files are accepted")])
