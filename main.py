@@ -25,19 +25,38 @@ csrf = CSRFProtect(app)
 def index():
   return redirect(url_for('home'))
 
+
 @app.route('/home', methods=['GET', 'POST'])
 def home():
-  form = uuidForm()
+  if 'state' not in session:
+    session['state'] = None
+  form = singpassForm()
   if form.validate_on_submit():
-    session['uuid'] = form.uuid.data
-    return redirect(url_for('medic'))
+    session['state'] = 'internet'
+    return redirect(url_for('singpass'))
   return render_template('home.html', form = form)
 
 @app.route('/medic')
 def medic():
+  form = logoutForm()
+  if form.validate_on_submit():
+    session['state'] = None
+    return redirect(url_for('home'))
+  
+  if 'state' not in session:
+    session['state'] = None
+  regex = '\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
+  if not isinstance(session['state'], str):
+    flash('Please Log In')
+    session['state'] = None
+    return redirect(url_for('home'))
+  if not re.match(regex, session['state']):
+    flash('Please Log In')
+    session['state'] = None
+    return redirect(url_for('home'))
   medicQuery = (
     db.session.query(MaskedIC, AMPT, VocDate)
-    .filter(MaskedIC.uuid==session['uuid'])
+    .filter(MaskedIC.uuid==session['state'])
     .join(AMPT)
     .join(VocDate)    
     .first())
@@ -50,14 +69,16 @@ def medic():
   if validity == "Invalid" :
     duration *= -1
   ic = medicQuery.MaskedIC.masked_ic
-  return render_template('medic.html', ic = ic, exp = expDate.strftime("%-d %B %Y"), valid = validity, months = math.floor(duration/30.5), days = duration)
+  return render_template('medic.html', ic = ic, exp = expDate.strftime("%-d %B %Y"), valid = validity, months = math.floor(duration/30.5), days = duration, form = form)
 
 @app.route('/inet', methods=['GET', 'POST'])
 def inet():
-  form = uuidForm()
+  if 'state' not in session:
+    session['state'] = None
+  form = singpassForm()
   if form.validate_on_submit():
-    session['uuid'] = form.uuid.data
-    return redirect(url_for('unit'))
+    session['state'] = 'intranet'
+    return redirect(url_for('singpass'))
   return render_template('inet.html', form = form)
 
 @app.route('/unit', methods=['GET', 'POST'])
@@ -66,8 +87,17 @@ def unit():
   formsearch = unitSearchForm(
     entry='"Masked NRIC (123X)","FULL NAME"'
   )
-  if 'result' not in session:
-    session['result'] = None
+  if 'state' not in session:
+    session['state'] = None
+  if session['state'] != 'unit':
+    session['state'] = None
+    flash('Please Log In')
+    return redirect(url_for('inet'))
+
+  formlogout = logoutForm()
+  if formlogout.validate_on_submit():
+    session['state'] = None
+    return redirect(url_for('inet'))
 
   if formxls.submitxls.data and formxls.validate():
     f = formxls.file.data
@@ -98,9 +128,6 @@ def unit():
 
       for query in queries[1:]:
         query_uuids = []
-
-
-
 
         ICQuery = (
           MaskedIC.query.
@@ -216,7 +243,7 @@ def unit():
       filename_suffix="eMedic"
       )
          
-  return render_template('unit.html', inet = True, formxls = formxls, formsearch=formsearch)
+  return render_template('unit.html', inet = True, formxls = formxls, formsearch=formsearch, formlogout = formlogout)
 
 @app.route('/smti', methods=['GET', 'POST'])
 def smti():
@@ -238,6 +265,18 @@ def smti():
 
   if 'tab' not in session:
     session['tab'] = 'smti'
+
+  if 'state' not in session:
+    session['state'] = None
+  if session['state'] != 'SMTI':
+    session['state'] = None
+    flash('Please Log In')
+    return redirect(url_for('inet'))
+
+  formlogout = logoutForm()
+  if formlogout.validate_on_submit():
+    session['state'] = None
+    return redirect(url_for('inet'))
 
   if formxls.submitxls_smti.data and formxls.validate():
     session['tab'] = "smti"
@@ -492,7 +531,6 @@ def smti():
                 formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" cannot be deleted directly")
             elif column == "course_name":
               if value == "#DEL":
-                course_dict[column] = value.upper()
                 course_field += 1
                 course_del += 1
               elif value.upper() in ['EMT', 'EMTS', 'MVT', 'BCS']:
@@ -502,7 +540,6 @@ def smti():
                 formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts 'EMT', 'EMTS', 'MVT' or 'BCS' as input")
             elif column == "course_date":
               if value == "#DEL":
-                query_dict[column] = value
                 course_field += 1
                 course_del += 1
               else:
@@ -514,7 +551,7 @@ def smti():
                   formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts '#DEL' or date in YYYY-MMM-DD  as input")
             elif column == "ampt_date":
               if value == "#DEL":
-                query_dict[column] = value
+                delete_check.append('ampt_date')
               else:
                 try:
                   delete_check.append(column)
@@ -525,7 +562,6 @@ def smti():
                   formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts '#DEL' or date in YYYY-MMM-DD  as input")
             elif column == "aed_name":
               if value == "#DEL":
-                query_dict[column] = value
                 aed_field += 1
                 aed_del += 1
               elif value.upper() in ['CPR+AED', 'BCLS+AED']:
@@ -535,7 +571,6 @@ def smti():
                 formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts 'CPR+AED' or 'BCLS+AED' as input")
             elif column == "aed_date":
               if value == "#DEL":
-                query_dict[column] = value
                 aed_field += 1
                 aed_del += 1
               else:
@@ -547,7 +582,6 @@ def smti():
                   formsearch.modify_smti.errors.append(query_dict["uuid"] + " " + column +" only accepts '#DEL' or date in YYYY-MMM-DD as input")
             elif column == "aed_cert":
               if value == "#DEL":
-                query_dict[column] = value
                 aed_field += 1
                 aed_del += 1
               else:
@@ -558,38 +592,43 @@ def smti():
               if column in session['smti_modify_header']:
                 session['smti_modify_header'].remove(column)
 
-            if course_field > 0:
-              if course_del == 1:
-                formsearch.modify_smti.errors.append(query_dict["uuid"] + " must have '#DEL' in 'course_name' and 'course_date'")
-              if course_del == 2:
-                delete_check.append('course')
-              elif course_field == 1:
-                InternetQuery = (
-                  db.session.query(VocDate)
-                  .filter(VocDate.uuid == query_dict["uuid"])
-                  .one()
-                )
-                IntranetQuery = (
-                  db.session.query(VocName)
-                  .filter(VocName.uuid == query_dict["uuid"])
-                  .one()
-                )
-                if InternetQuery == None and IntranetQuery == None:
-                  formsearch.modify_smti.errors.append(query_dict["uuid"] + " 'course_name' and 'course_date' must be defined together to create a new entry")
 
-            if aed_field > 0:
-              if 0 < aed_del < 3:
-                formsearch.modify_smti.errors.append(query_dict["uuid"] + " must have '#DEL' in 'aed_name', 'aed_date' and 'aed_cert'")
-              if aed_del == 3:
-                delete_check.append('aed')
-              elif aed_field < 3:
-                IntranetQuery = (
-                  db.session.query(VocName)
-                  .filter(AED.uuid == query_dict["uuid"])
-                  .one()
-                )
-                if IntranetQuery == None:
-                  formsearch.modify_smti.errors.append(query_dict["uuid"] + " 'course_name' and 'course_date' must be defined together to create a new entry")
+
+          if course_field > 0:
+            if course_del == 1:
+              formsearch.modify_smti.errors.append(query_dict["uuid"] + " must have '#DEL' in 'course_name' and 'course_date'")
+            if course_del == 2:
+              delete_check.append('course')
+            elif course_field == 1:
+              InternetQuery = (
+                db.session.query(VocDate)
+                .filter(VocDate.uuid == query_dict["uuid"])
+                .first()
+              )
+              IntranetQuery = (
+                db.session.query(VocName)
+                .filter(VocName.uuid == query_dict["uuid"])
+                .first()
+              )
+              if InternetQuery == None and IntranetQuery == None:
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " 'course_name' and 'course_date' must be defined together to create a new entry")
+
+          if aed_field > 0:
+            if 0 < aed_del < 3:
+              formsearch.modify_smti.errors.append(query_dict["uuid"] + " must have '#DEL' in 'aed_name', 'aed_date' and 'aed_cert'")
+            if aed_del == 3:
+              delete_check.append('aed')
+            elif aed_field < 3:
+              IntranetQuery = (
+                db.session.query(AED)
+                .filter(AED.uuid == query_dict["uuid"])
+                .first()
+              )
+              if IntranetQuery == None:
+                formsearch.modify_smti.errors.append(query_dict["uuid"] + " 'course_name' and 'course_date' must be defined together to create a new entry")
+          
+          print("DELETECHECK")
+          print(delete_check)
 
           if len(delete_check) > 0:
 
@@ -598,7 +637,7 @@ def smti():
               .outerjoin(AMPT)
               .outerjoin(VocDate)
               .filter(MaskedIC.uuid == query_dict["uuid"])
-              .one()
+              .first()
             )
 
             IntranetQuery = (
@@ -607,7 +646,7 @@ def smti():
               .outerjoin(AED)
               .outerjoin(Profile)
               .filter(FullName.uuid == query_dict["uuid"])
-              .one()
+              .first()
             )
 
             if (
@@ -660,9 +699,6 @@ def smti():
       column_order=session["smti_modify_header"],
       filename_suffix="modify_smti"
       )
-
-
-
 
   if formmodify.submit_modify_smti.data and formmodify.validate():
 
@@ -1154,7 +1190,7 @@ def smti():
               .outerjoin(AMPT)
               .outerjoin(VocDate)
               .filter(MaskedIC.uuid == query_dict["uuid"])
-              .one()
+              .first()
             )
 
             IntranetQuery = (
@@ -1162,7 +1198,7 @@ def smti():
               .outerjoin(VocName)
               .outerjoin(AED)
               .filter(FullName.uuid == query_dict["uuid"])
-              .one()
+              .first()
             )
 
             if (
@@ -1388,7 +1424,7 @@ def smti():
     session["profile_modify_header"] = None
     session["result_modify_p"] = None
 
-  return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formmodify=formmodify, formxlsp = formxlsp, formsearchp=formsearchp, formmodifyp=formmodifyp)
+  return render_template('smti.html', inet = True, formxls = formxls, formsearch=formsearch, formmodify=formmodify, formxlsp = formxlsp, formsearchp=formsearchp, formmodifyp=formmodifyp, formlogout = formlogout)
 
 
 @app.route('/invalid')
@@ -1399,9 +1435,25 @@ def invalid():
 def terms():
   return render_template('terms.html', nodate = True)
 
-@app.route('/singpass')
+@app.route('/singpass', methods=['GET', 'POST'])
 def singpass():
-  return render_template('singpass.html', nodate = True)
+  if 'state' not in session:
+    session['state'] = None
+  print(session['state'])
+  print(session['state'] != 'internet')
+  print(session['state'] != 'intranet')
+  if session['state'] != 'internet' and session['state'] != 'intranet':
+    session['state'] = None
+    flash('Please Log In')
+    return redirect(url_for('home'))
+  form = loginForm()
+  if form.validate_on_submit():
+    ICQuery = db.session.query()
+    if session['state'] == 'internet':
+      
+    session['state'] = 'SMTI'
+    return redirect(url_for('smti'))
+  return render_template('singpass.html', nodate = True, form = form)
 
 @app.errorhandler(404)
 def page_not_found(self):

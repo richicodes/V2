@@ -1,13 +1,21 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 
-from wtforms import StringField, SubmitField, TextAreaField
-from wtforms.validators import InputRequired, UUID
+from wtforms import StringField, SubmitField, TextAreaField, PasswordField
+from wtforms.validators import InputRequired, Regexp
 
-class uuidForm(FlaskForm):
-  uuid  = StringField('SingPass UUID', validators=
-    [InputRequired(message="No input to process"), UUID(message="Please input valid UUID")])
-  submit = SubmitField('Singpass Login')
+class singpassForm(FlaskForm):
+  submit = SubmitField('Log In with SingPass')
+
+class loginForm(FlaskForm):
+  username  = StringField('SingPass ID', validators=
+    [InputRequired(message="Please Enter SingPass ID"), Regexp('[a-zA-Z][0-9][0-9][0-9][0-9][0-9][0-9][0-9][a-zA-Z]', message="SingPass ID is in IC format")])
+  password = PasswordField('Password', validators=
+    [InputRequired()])
+  submit = SubmitField('Log In')
+
+class logoutForm(FlaskForm):
+  submit = SubmitField('Log Out')
 
 class unitXlsxForm(FlaskForm):
   file = FileField(validators=[FileRequired(), FileAllowed(["xlsx"], "Only .xlsx files are accepted")])

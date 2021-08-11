@@ -1,5 +1,23 @@
 {% extends 'base-login.html' %}
 
+{% block img %}
+<img src = "/static/singpass-logo.svg" class="mx-auto" style="max-width:80vw"/>
+{% endblock %}
+
 {% block logincontent %}
-  <button type="button" class="btn btn-primary btn-lg">Log in with SingPass</button>
+<form method="POST">
+  {{ form.csrf_token }}
+  <div class="form-group">
+    {{ form.username(placeholder="Username", size="39") }}
+    {{ form.password(placeholder="Password", size="39") }}
+    {% if form.username.errors %} 
+      {% for error in form.username.errors %}
+      <span class="badge bg-danger">{{ error}}</span></h1>
+      {% endfor %}
+    {% endif %}
+  </div>
+  <div class="form-group pt-2">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
+</form>
 {% endblock %}

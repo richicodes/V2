@@ -2,7 +2,8 @@
 
 {% block content %}
 <div class="col-md-6 d-flex flex-wrap align-items-center p-3 bg-light">
-  <img src = "/static/icon.png" class="mx-auto" style="max-width:80vw"/>
+  {% block img %}
+  {% endblock %}
 </div>
 <div class="col-md-5 m-auto py-5">
   <h2 class="text-danger">
@@ -12,6 +13,13 @@
     This system is used to process Government of Singapore information and is a protected computer under the Computer Misuse and Cybersecurity Act. An offender can be fined up to $100,000 and/or imprisoned up to 20 years if found guilty of unauthorised access, use, reproduction, possession, modification, interception, damage or transfer (including such attempts) of this and any content therein. If you are not authorised to use this system, please do not attempt to login.
   </b>  
   <hr>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for type, message in messages %}
+        <h2><span class="badge bg-danger">{{ message }}</span></h2>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
   {% block logincontent %}{% endblock %}
 </div>
 {% endblock %}

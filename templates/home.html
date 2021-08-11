@@ -1,20 +1,14 @@
 {% extends 'base-login.html' %}
 
+{% block img %}
+<img src = "/static/icon.png" class="mx-auto" style="max-width:80vw"/>
+{% endblock %}
+
 {% block logincontent %}
-  <form method="POST">
-    {{ form.csrf_token }}
-    <div class="form-group">
-      {{ form.uuid.label }}
-      <br>
-      {{ form.uuid(placeholder="00000000-0000-0000-0000-000000000000", size="39") }}
-      {% if form.uuid.errors %} 
-        {% for error in form.uuid.errors %}
-        <span class="badge bg-danger">{{ error}}</span></h1>
-        {% endfor %}
-      {% endif %}
-    </div>
-    <div class="form-group pt-2">
-      {{ form.submit(class="btn btn-primary") }}
-    </div>
-  </form>
+<form method="POST">
+  {{ form.csrf_token }}
+  <div class="form-group pt-2">
+    {{ form.submit(class="btn btn-primary btn-lg") }}
+  </div>
+</form>
 {% endblock %}
