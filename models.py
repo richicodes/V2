@@ -42,3 +42,9 @@ class Profile(db.Model):
   __tablename__ = "profile"
   uuid = db.Column(db.String(), db.ForeignKey('full_name.uuid'), primary_key=True, unique=True, nullable=False)
   rights = db.Column(db.String(), nullable=False)
+
+class IC(db.Model):
+  __bind_key__= "fakepass"
+  __tablename__ = "ic"
+  uuid = db.Column(db.String(), db.ForeignKey('full_name.uuid'), primary_key=True, unique=True, nullable=False)
+  ic = db.Column(db.String(), nullable=False, unique=True)

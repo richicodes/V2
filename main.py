@@ -15,7 +15,7 @@ import os, random, math, csv, io, re
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ['secret_key']
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///eMedicInternet.db'
-app.config['SQLALCHEMY_BINDS'] = {"intranet":'sqlite:///eMedicIntranet.db'}
+app.config['SQLALCHEMY_BINDS'] = {"intranet":'sqlite:///eMedicIntranet.db', "fakepass":'sqlite:///FakePass.db'}
 
 db.init_app(app)
 csrf = CSRFProtect(app)
@@ -28,8 +28,7 @@ def index():
 
 @app.route('/home', methods=['GET', 'POST'])
 def home():
-  if 'state' not in session:
-    session['state'] = None
+  session['state'] = None
   form = singpassForm()
   if form.validate_on_submit():
     session['state'] = 'internet'
@@ -38,14 +37,9 @@ def home():
 
 @app.route('/medic')
 def medic():
-  form = logoutForm()
-  if form.validate_on_submit():
-    session['state'] = None
-    return redirect(url_for('home'))
-  
   if 'state' not in session:
     session['state'] = None
-  regex = '\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
+  regex = r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
   if not isinstance(session['state'], str):
     flash('Please Log In')
     session['state'] = None
@@ -65,16 +59,17 @@ def medic():
     voc = medicQuery.VocDate.course_date
     validity, expDate, duration = expiryCalculator(ampt, voc)
   except:
-    return redirect(url_for('invalid'))
+    flash('Invalid profile')
+    session['state'] = None
+    return redirect(url_for('home'))
   if validity == "Invalid" :
     duration *= -1
   ic = medicQuery.MaskedIC.masked_ic
-  return render_template('medic.html', ic = ic, exp = expDate.strftime("%-d %B %Y"), valid = validity, months = math.floor(duration/30.5), days = duration, form = form)
+  return render_template('medic.html', ic = ic, exp = expDate.strftime("%-d %B %Y"), valid = validity, months = math.floor(duration/30.5), days = duration)
 
 @app.route('/inet', methods=['GET', 'POST'])
 def inet():
-  if 'state' not in session:
-    session['state'] = None
+  session['state'] = None
   form = singpassForm()
   if form.validate_on_submit():
     session['state'] = 'intranet'
@@ -89,7 +84,7 @@ def unit():
   )
   if 'state' not in session:
     session['state'] = None
-  if session['state'] != 'unit':
+  if session['state'] != 'Unit':
     session['state'] = None
     flash('Please Log In')
     return redirect(url_for('inet'))
@@ -265,6 +260,8 @@ def smti():
 
   if 'tab' not in session:
     session['tab'] = 'smti'
+
+  print("in SMTI")
 
   if 'state' not in session:
     session['state'] = None
@@ -1439,20 +1436,47 @@ def terms():
 def singpass():
   if 'state' not in session:
     session['state'] = None
-  print(session['state'])
-  print(session['state'] != 'internet')
-  print(session['state'] != 'intranet')
   if session['state'] != 'internet' and session['state'] != 'intranet':
     session['state'] = None
-    flash('Please Log In')
+    flash('An error occured')
     return redirect(url_for('home'))
   form = loginForm()
   if form.validate_on_submit():
-    ICQuery = db.session.query()
-    if session['state'] == 'internet':
-      
-    session['state'] = 'SMTI'
-    return redirect(url_for('smti'))
+    ic = form.username.data
+    uuidQuery = db.session.query(IC).filter(IC.ic==form.username.data).first()
+    try:
+      uuid = uuidQuery.uuid
+      print(session['state'])
+      print(uuid)
+      if session['state'] == 'internet':
+        print(uuid)
+        session['state'] = uuid
+        print(session['state'])
+        print("medic")
+        return(redirect(url_for('medic')))
+      elif session['state'] == 'intranet':
+        rightsQuery = db.session.query(Profile).filter(Profile.uuid==uuid).first()
+        print(rightsQuery)
+        try:
+          print("CHECK")
+          session['state'] = rightsQuery.rights
+          print(session['state'])
+          if session['state'] == 'Unit':
+            return(redirect(url_for('unit')))
+          elif session['state'] == 'SMTI':
+            return(redirect(url_for('smti')))
+          else:
+            flash('Invalid profile')
+            session['state'] = None
+            return redirect(url_for('inet'))
+        except:
+          flash('Invalid profile')
+          session['state'] = None
+          return redirect(url_for('inet'))
+    except:
+      flash('An error occured')
+      session['state'] = None
+      return redirect(url_for('home'))
   return render_template('singpass.html', nodate = True, form = form)
 
 @app.errorhandler(404)

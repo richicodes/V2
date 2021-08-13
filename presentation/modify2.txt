@@ -1,0 +1,2 @@
+"uuid","masked_ic","ampt_date","aed_name","aed_date","aed_cert","course_name","course_date"
+"2d1a7c1d-90f2-9953-8ed4-fcbdf7498db3","123h","#DEL","#DEL","#DEL","#DEL","#DEL","#DEL"

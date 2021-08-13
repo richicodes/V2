@@ -1,0 +1,7 @@
+"uuid","masked_ic","ampt_date","rights"
+"e9d53793-13ee-79ff-6fb4-6a9914b88120","213g","2016-Jul-21","#DEL"
+"2d1a7c1d-90f2-9953-8ed4-fcbdf7498db3","123h","2016-Jul-22","#DEL"
+"aa58bab9-0eea-6dfc-8c7d-33cc71fb3a67","234f","2016-Jul-23","#DEL"
+"c867ecfd-5a4b-2bd7-4187-cbc4390ca719","123c","2016-Jul-24","#DEL"
+"203kaspt-102t-pqsl-10fq-lmzie918ejga","123c","2016-Jul-24","#DEL"
+"cebd7af2-8e21-4db2-8761-4aceff2f18b6"," "," "," "
