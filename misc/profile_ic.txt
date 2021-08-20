@@ -1,0 +1,4 @@
+IC, medic status, profile status
+F1612351W, expired, unit
+S9912370B, ok, invalid
+S7380725E, does not exist, smti

@@ -84,15 +84,18 @@ def unit():
   )
   if 'state' not in session:
     session['state'] = None
+    print("NO STATE")
   if session['state'] != 'Unit':
     session['state'] = None
     flash('Please Log In')
     return redirect(url_for('inet'))
 
   formlogout = logoutForm()
-  if formlogout.validate_on_submit():
+  if formlogout.submit.data and formlogout.validate():
     session['state'] = None
     return redirect(url_for('inet'))
+
+  print(session['state'])
 
   if formxls.submitxls.data and formxls.validate():
     f = formxls.file.data
@@ -271,7 +274,7 @@ def smti():
     return redirect(url_for('inet'))
 
   formlogout = logoutForm()
-  if formlogout.validate_on_submit():
+  if if formlogout.submit.data and formlogout.validate():
     session['state'] = None
     return redirect(url_for('inet'))
 

@@ -6,6 +6,8 @@
 
 2. Run programme in replit.
 
+3. You can find sample login ICs in profile_ic.txt. Password is not checked, but some character needs to be entered.
+
 ## Medic View
 1. Point to /home (automatically redirects from root page)
 2. Click 'Login with SingPass', then enter a valid or invalid NRIC. Type anything in the password field.
